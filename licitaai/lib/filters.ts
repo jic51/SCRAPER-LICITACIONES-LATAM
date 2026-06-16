@@ -42,6 +42,45 @@ export function getScoreColor(score: number): 'green' | 'yellow' | 'red' {
   return 'red'
 }
 
+/**
+ * Estima un puntaje de compatibilidad (0-100) entre una licitación y los
+ * filtros del usuario. Es un cálculo determinista basado en datos reales del
+ * perfil — NO usa IA. Se usa como respaldo cuando todavía no existe un
+ * fit_score calculado por el motor de IA para esa licitación.
+ */
+export function estimateMatchScore(
+  licitacion: Licitacion,
+  filters: UserFilters
+): number {
+  let score = 55 // base neutra
+
+  if (filters.sectors.length > 0 && licitacion.sector) {
+    score += filters.sectors.includes(licitacion.sector.toLowerCase()) ? 25 : -20
+  }
+
+  if (filters.states.length > 0 && licitacion.state) {
+    const match = filters.states.some(
+      s => s.toLowerCase() === licitacion.state!.toLowerCase()
+    )
+    score += match ? 15 : -10
+  }
+
+  if (licitacion.amount !== null) {
+    const inRange =
+      licitacion.amount >= filters.min_amount &&
+      licitacion.amount <= filters.max_amount
+    score += inRange ? 15 : -15
+  }
+
+  if (filters.keywords.length > 0) {
+    const text = `${licitacion.title} ${licitacion.sector ?? ''}`.toLowerCase()
+    const hits = filters.keywords.filter(kw => text.includes(kw.toLowerCase())).length
+    score += hits > 0 ? 10 : -5
+  }
+
+  return Math.max(0, Math.min(100, score))
+}
+
 export function formatAmount(amount: number | null): string {
   if (amount === null) return 'Monto no especificado'
   return new Intl.NumberFormat('es-MX', {
