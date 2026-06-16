@@ -2,6 +2,7 @@ import {
   Search, Sparkles, Bell, Check, ArrowRight,
   TrendingUp, AlertTriangle, Eye, Clock, MapPin, CheckCircle2,
 } from 'lucide-react'
+import RotatingTenderCard from '@/components/landing/RotatingTenderCard'
 
 export const metadata = {
   title: 'LicitaAI — Tu Director de Licitaciones Virtual',
@@ -98,36 +99,8 @@ export default function Home() {
             <p className="text-slate-500 text-sm mt-6">Sin tarjeta de crédito · Configúralo en 2 minutos</p>
           </div>
 
-          {/* MOCKUP: tarjeta de licitación con Fit Score */}
-          <div className="relative">
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 max-w-md mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">CompraNet · México</span>
-                <span className="text-xs text-amber-600 font-medium">Cierra en 6 días</span>
-              </div>
-              <h3 className="font-semibold text-slate-900 leading-snug mb-3">
-                Servicio de mantenimiento de áreas verdes — Municipio de Guadalajara
-              </h3>
-              <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-5">
-                <span className="bg-slate-100 rounded px-2 py-1">Jalisco</span>
-                <span className="bg-slate-100 rounded px-2 py-1">$1.8M MXN</span>
-                <span className="bg-slate-100 rounded px-2 py-1">Mantenimiento</span>
-              </div>
-              <div className="flex items-center gap-4 border-t border-slate-100 pt-4">
-                <div className="relative w-16 h-16 shrink-0 rounded-full bg-green-50 border-4 border-green-500 flex items-center justify-center">
-                  <span className="text-lg font-bold text-green-600">92%</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-green-600 text-sm">Alta compatibilidad</p>
-                  <p className="text-slate-500 text-xs">Coincide con tu sector y tu rango de monto. Vale la pena postular.</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-4 max-w-xs absolute -bottom-6 -left-2 hidden sm:flex items-center gap-3">
-              <Bell className="h-5 w-5 text-blue-600 shrink-0" />
-              <p className="text-xs text-slate-600">Te avisamos por WhatsApp cuando aparece una oportunidad así.</p>
-            </div>
-          </div>
+          {/* MOCKUP: tarjeta de licitación con Fit Score (rota entre países) */}
+          <RotatingTenderCard />
         </div>
       </section>
 
@@ -268,10 +241,7 @@ export default function Home() {
         <div className="bg-blue-50 border border-blue-100 rounded-3xl p-10 sm:p-12">
           <span className="text-blue-600 font-semibold text-sm uppercase tracking-wide">Por qué construimos esto</span>
           <blockquote className="text-xl sm:text-2xl text-slate-800 font-medium leading-relaxed mt-5">
-            “Vi de cerca cómo una empresa perdía contratos enormes de gobierno, no por falta de
-            capacidad, sino porque nadie tenía tiempo de revisar los portales todos los días. No era
-            justo. Construí LicitaAI para que ninguna PYME de América Latina vuelva a perder una
-            licitación simplemente por no enterarse a tiempo.”
+            “Hablé con decenas de dueños de pequeñas empresas y casi todos me dijeron lo mismo: <span className="text-blue-700">‘sé que hay contratos de gobierno para mí, pero no tengo tiempo de buscarlos’</span>. El comprador más grande de la región estaba fuera de su alcance —no por falta de capacidad, sino de tiempo y de información. LicitaAI existe para cambiar eso: que enterarte de la licitación correcta deje de ser un privilegio de las grandes empresas.”
           </blockquote>
           <div className="flex items-center gap-3 mt-8">
             <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">L</div>
@@ -335,7 +305,7 @@ export default function Home() {
         <h2 className="text-3xl font-bold text-center mb-10">Preguntas frecuentes</h2>
         <div className="divide-y divide-slate-200 border-y border-slate-200">
           {FAQ.map((item) => (
-            <details key={item.q} className="group py-5">
+            <details key={item.q} name="faq" className="group py-5">
               <summary className="flex items-center justify-between cursor-pointer list-none font-medium text-slate-900">
                 {item.q}
                 <span className="text-slate-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
