@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ export default function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const touch = (field: keyof F) => {
     setTouched(t => ({ ...t, [field]: true }))
@@ -78,10 +80,23 @@ export default function SignupForm() {
           ] as [keyof F, string, string, string][]).map(([field, label, placeholder, type]) => (
             <div key={field} className="space-y-2">
               <Label htmlFor={field}>{label}</Label>
-              <Input id={field} type={type} placeholder={placeholder}
-                value={form[field]}
-                onChange={e => change(field, e.target.value)}
-                onBlur={() => touch(field)} />
+              <div className="relative">
+                <Input id={field}
+                  type={field === 'password' && showPassword ? 'text' : type}
+                  placeholder={placeholder}
+                  className={field === 'password' ? 'pr-10' : undefined}
+                  value={form[field]}
+                  onChange={e => change(field, e.target.value)}
+                  onBlur={() => touch(field)} />
+                {field === 'password' && (
+                  <button type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
               {touched[field] && errors[field] && (
                 <p className="text-sm text-destructive">{errors[field]}</p>
               )}
