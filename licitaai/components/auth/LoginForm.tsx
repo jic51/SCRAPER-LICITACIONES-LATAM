@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +14,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,8 +40,19 @@ export default function LoginForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" type="password" value={password}
-              onChange={e => setPassword(e.target.value)} required />
+            <div className="relative">
+              <Input id="password"
+                type={showPassword ? 'text' : 'password'}
+                className="pr-10"
+                value={password}
+                onChange={e => setPassword(e.target.value)} required />
+              <button type="button"
+                onClick={() => setShowPassword(s => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
