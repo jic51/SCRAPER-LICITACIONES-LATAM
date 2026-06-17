@@ -51,7 +51,21 @@ export default function SignupForm() {
       options: { data: { company_name: form.company_name } },
     })
     setLoading(false)
-    if (error) { setServerError('Error al crear la cuenta. Intenta de nuevo.'); return }
+    if (error) {
+      // Mostrar la causa real para poder diagnosticar (antes se ocultaba)
+      console.error('Signup error:', error)
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
+        setServerError('Este correo ya está registrado. Inicia sesión o usa otro correo.')
+      } else if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('exceeded')) {
+        setServerError('Demasiados intentos en poco tiempo. Espera unos minutos e inténtalo de nuevo.')
+      } else if (msg.includes('database error') || msg.includes('saving new user')) {
+        setServerError('Error de base de datos al crear el perfil (revisa el trigger). Detalle: ' + error.message)
+      } else {
+        setServerError('No se pudo crear la cuenta. Detalle: ' + error.message)
+      }
+      return
+    }
     setSuccess(true)
   }
 
