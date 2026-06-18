@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Agent } from 'undici'
 import { extractReleases, releaseToLicitacion, type RawInsert } from '@/lib/scraper/ocds'
+import { parseCsv } from '@/lib/scraper/csv'
 import { SOURCES } from '@/lib/scraper/sources'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,7 @@ type SummaryRow = {
   topKeys?: string | string[]
   sampleRaw?: string
   bytes?: number
+  headers?: string[]
 }
 
 // Tope de tamaño de respuesta para no agotar memoria (30 MB).
@@ -76,6 +78,8 @@ export async function GET(req: Request) {
           'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          // Para CSV grandes: pide solo los primeros ~4 MB (suficientes filas).
+          ...(source.format === 'csv' ? { Range: 'bytes=0-4000000' } : {}),
         },
         // Falla limpio en 55s en vez de colgarse para siempre.
         signal: AbortSignal.timeout(55_000),
@@ -90,34 +94,53 @@ export async function GET(req: Request) {
       }
 
       const res = await fetch(target, init)
-      const text = await res.text()
-      if (debug) row.bytes = text.length
 
-      if (!res.ok) {
-        row.error = `HTTP ${res.status}`
-        if (debug) row.sampleRaw = text.slice(0, 500)
-        summary.push(row)
-        continue
+      let rows: RawInsert[] = []
+
+      if (source.format === 'csv') {
+        // CSV de CompraNet suele venir en Windows-1252 (acentos).
+        const buf = await res.arrayBuffer()
+        if (debug) row.bytes = buf.byteLength
+        if (!res.ok) {
+          row.error = `HTTP ${res.status}`
+          summary.push(row)
+          continue
+        }
+        const text = new TextDecoder('windows-1252').decode(buf)
+        const parsed = parseCsv(text, source)
+        rows = parsed.rows
+        row.fetched = parsed.total
+        row.normalized = rows.length
+        if (debug) {
+          row.headers = parsed.headers
+          row.sampleRaw = JSON.stringify(rows.slice(0, 2)).slice(0, 4000)
+        }
+      } else {
+        const text = await res.text()
+        if (debug) row.bytes = text.length
+        if (!res.ok) {
+          row.error = `HTTP ${res.status}`
+          if (debug) row.sampleRaw = text.slice(0, 500)
+          summary.push(row)
+          continue
+        }
+        if (text.length > MAX_BYTES) {
+          row.error = `Respuesta demasiado grande (${text.length} bytes) — agrega más filtros.`
+          summary.push(row)
+          continue
+        }
+        const json: unknown = JSON.parse(text)
+        const releases = extractReleases(json)
+        row.fetched = releases.length
+        if (debug) {
+          row.topKeys = describeShape(json)
+          row.sampleRaw = JSON.stringify(releases.length ? releases.slice(0, 2) : json).slice(0, 8000)
+        }
+        rows = releases
+          .map((r) => releaseToLicitacion(r, source))
+          .filter((x): x is RawInsert => x !== null)
+        row.normalized = rows.length
       }
-      if (text.length > MAX_BYTES) {
-        row.error = `Respuesta demasiado grande (${text.length} bytes) — agrega más filtros.`
-        summary.push(row)
-        continue
-      }
-
-      const json: unknown = JSON.parse(text)
-      const releases = extractReleases(json)
-      row.fetched = releases.length
-
-      if (debug) {
-        row.topKeys = describeShape(json)
-        row.sampleRaw = JSON.stringify(releases.length ? releases.slice(0, 2) : json).slice(0, 8000)
-      }
-
-      const rows: RawInsert[] = releases
-        .map((r) => releaseToLicitacion(r, source))
-        .filter((x): x is RawInsert => x !== null)
-      row.normalized = rows.length
 
       if (rows.length > 0) {
         const { error } = await supabase
