@@ -47,15 +47,18 @@ export default function OnboardingWizard() {
         min_amount: data.min_amount,
         max_amount: data.max_amount,
         keywords: [],
-      })
+      }, { onConflict: 'user_id' })
       if (filterError) throw filterError
       const { error: profileError } = await sb.from('users')
         .update({ onboarding_completed: true, country_code: data.country })
         .eq('id', user.id)
       if (profileError) throw profileError
       router.push('/dashboard')
-    } catch {
-      setError('Ocurrió un error al guardar tu configuración. Intenta de nuevo.')
+    } catch (e) {
+      // Mostrar la causa real para poder diagnosticar (antes se ocultaba)
+      console.error('Onboarding save error:', e)
+      const msg = e instanceof Error ? e.message : 'Error desconocido'
+      setError('No se pudo guardar la configuración. Detalle: ' + msg)
       setLoading(false)
     }
   }
