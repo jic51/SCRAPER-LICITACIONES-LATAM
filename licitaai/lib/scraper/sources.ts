@@ -20,10 +20,6 @@ export const SOURCES: Source[] = [
     state: 'CDMX',
     portalPrefix: 'CDMX',
     url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/plannings',
-    method: 'POST',
-    body: {
-      // Filtros opcionales; vacío intenta traer todo lo disponible.
-      consolidated: 'FALSE',
-    },
+    method: 'GET',
   },
 ]
