@@ -23,6 +23,22 @@ export default function OnboardingWizard() {
   const toggle = <K extends 'sectors' | 'states'>(key: K, val: string) =>
     setData(d => ({ ...d, [key]: d[key].includes(val) ? d[key].filter(x => x !== val) : [...d[key], val] }))
 
+  // Los errores de Supabase son objetos planos ({ message, code, details, hint }),
+  // no instancias de Error. Extraemos sus campos para mostrar la causa real.
+  const describeError = (err: unknown): string => {
+    if (!err) return 'Error desconocido'
+    if (typeof err === 'string') return err
+    if (err instanceof Error) return err.message
+    const e = err as { message?: string; code?: string; details?: string; hint?: string }
+    const parts = [
+      e.message,
+      e.code ? `código ${e.code}` : null,
+      e.details,
+      e.hint,
+    ].filter(Boolean)
+    return parts.length ? parts.join(' · ') : JSON.stringify(err)
+  }
+
   const selectedCountry = COUNTRIES.find(c => c.code === data.country)
   const countryStates = STATES_BY_COUNTRY[data.country] ?? []
   const countryName = selectedCountry?.name ?? ''
@@ -57,8 +73,7 @@ export default function OnboardingWizard() {
     } catch (e) {
       // Mostrar la causa real para poder diagnosticar (antes se ocultaba)
       console.error('Onboarding save error:', e)
-      const msg = e instanceof Error ? e.message : 'Error desconocido'
-      setError('No se pudo guardar la configuración. Detalle: ' + msg)
+      setError('No se pudo guardar la configuración. Detalle: ' + describeError(e))
       setLoading(false)
     }
   }
