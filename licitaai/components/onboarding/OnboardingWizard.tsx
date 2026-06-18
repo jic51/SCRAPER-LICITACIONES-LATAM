@@ -3,19 +3,31 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { MEXICO_SECTORS, MEXICO_STATES, AMOUNT_PRESETS } from '@/lib/constants'
+import {
+  MEXICO_SECTORS, AMOUNT_PRESETS, COUNTRIES, STATES_BY_COUNTRY,
+} from '@/lib/constants'
 
-type State = { sectors: string[]; states: string[]; min_amount: number; max_amount: number }
+type State = { country: string; sectors: string[]; states: string[]; min_amount: number; max_amount: number }
+
+const TOTAL_STEPS = 4
 
 export default function OnboardingWizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<State>({ sectors: [], states: [], min_amount: 0, max_amount: 999_999_999 })
+  const [data, setData] = useState<State>({
+    country: 'MX', sectors: [], states: [], min_amount: 0, max_amount: 999_999_999,
+  })
 
   const toggle = <K extends 'sectors' | 'states'>(key: K, val: string) =>
     setData(d => ({ ...d, [key]: d[key].includes(val) ? d[key].filter(x => x !== val) : [...d[key], val] }))
+
+  const selectedCountry = COUNTRIES.find(c => c.code === data.country)
+  const countryStates = STATES_BY_COUNTRY[data.country] ?? []
+  const countryName = selectedCountry?.name ?? ''
+  // No se puede avanzar si el país elegido aún no está disponible
+  const canAdvanceCountry = selectedCountry?.status === 'available'
 
   const finish = async () => {
     setLoading(true)
@@ -28,9 +40,18 @@ export default function OnboardingWizard() {
         setLoading(false)
         return
       }
-      const { error: filterError } = await sb.from('user_filters').upsert({ user_id: user.id, ...data, keywords: [] })
+      const { error: filterError } = await sb.from('user_filters').upsert({
+        user_id: user.id,
+        sectors: data.sectors,
+        states: data.states,
+        min_amount: data.min_amount,
+        max_amount: data.max_amount,
+        keywords: [],
+      })
       if (filterError) throw filterError
-      const { error: profileError } = await sb.from('users').update({ onboarding_completed: true }).eq('id', user.id)
+      const { error: profileError } = await sb.from('users')
+        .update({ onboarding_completed: true, country_code: data.country })
+        .eq('id', user.id)
       if (profileError) throw profileError
       router.push('/dashboard')
     } catch {
@@ -43,15 +64,54 @@ export default function OnboardingWizard() {
   const active = 'bg-blue-600 border-blue-500 text-white'
   const inactive = 'border-slate-700 text-slate-300 hover:border-slate-500'
 
+  const nextDisabled = step === 1 && !canAdvanceCountry
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-slate-900 rounded-xl p-8 border border-slate-800">
-        <p className="text-slate-400 text-sm mb-2">Paso {step} de 3</p>
+        <p className="text-slate-400 text-sm mb-2">Paso {step} de {TOTAL_STEPS}</p>
         <div className="w-full bg-slate-800 rounded-full h-1.5 mb-8">
-          <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(step/3)*100}%` }} />
+          <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
         </div>
 
         {step === 1 && (
+          <>
+            <h2 className="text-2xl font-bold text-white mb-2">¿En qué país buscas licitaciones?</h2>
+            <p className="text-slate-400 mb-6">Empieza por un país. Pronto podrás agregar más desde tu configuración.</p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {COUNTRIES.map(c => {
+                const isSel = data.country === c.code
+                const isSoon = c.status === 'soon'
+                return (
+                  <button
+                    key={c.code}
+                    onClick={() => setData(d => ({ ...d, country: c.code }))}
+                    className={`text-left rounded-xl border p-4 transition-all ${
+                      isSel
+                        ? 'border-blue-500 bg-blue-600/10'
+                        : 'border-slate-700 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{c.flag}</div>
+                    <div className="font-medium text-white">{c.name}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{c.portal}</div>
+                    {isSoon
+                      ? <span className="inline-block mt-2 text-xs text-slate-400 bg-slate-800 rounded-full px-2 py-0.5">Próximamente</span>
+                      : <span className="inline-block mt-2 text-xs text-green-400 bg-green-500/10 rounded-full px-2 py-0.5">Disponible</span>}
+                  </button>
+                )
+              })}
+            </div>
+            {!canAdvanceCountry && (
+              <p className="text-sm text-amber-400 mt-4">
+                Aún no estamos en {countryName}. Mientras tanto, elige México para empezar — te
+                avisaremos en cuanto abramos {countryName}.
+              </p>
+            )}
+          </>
+        )}
+
+        {step === 2 && (
           <>
             <h2 className="text-2xl font-bold text-white mb-2">¿En qué sectores trabaja tu empresa?</h2>
             <p className="text-slate-400 mb-6">Selecciona todos los que apliquen. Puedes cambiar esto después.</p>
@@ -66,12 +126,12 @@ export default function OnboardingWizard() {
           </>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <>
-            <h2 className="text-2xl font-bold text-white mb-2">¿En qué estados de México opera tu empresa?</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">¿En qué estados de {countryName} opera tu empresa?</h2>
             <p className="text-slate-400 mb-6">Selecciona todos donde puedas ejecutar contratos.</p>
             <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
-              {MEXICO_STATES.map(s => (
+              {countryStates.map(s => (
                 <button key={s} onClick={() => toggle('states', s)}
                   className={`${btnBase} px-3 py-1.5 ${data.states.includes(s) ? active : inactive}`}>
                   {s}
@@ -81,7 +141,7 @@ export default function OnboardingWizard() {
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <>
             <h2 className="text-2xl font-bold text-white mb-2">¿Qué rango de monto de contrato te interesa?</h2>
             <p className="text-slate-400 mb-6">Selecciona el rango que mejor se ajusta a tu empresa.</p>
@@ -101,11 +161,11 @@ export default function OnboardingWizard() {
         {error && <p className="text-sm text-red-400 mt-4 text-center">{error}</p>}
 
         <div className="flex justify-between mt-10">
-          <Button variant="ghost" onClick={() => setStep(s => s-1)} disabled={step === 1} className="text-slate-400">
+          <Button variant="ghost" onClick={() => setStep(s => s - 1)} disabled={step === 1} className="text-slate-400">
             Atrás
           </Button>
-          {step < 3
-            ? <Button onClick={() => setStep(s => s+1)}>Siguiente</Button>
+          {step < TOTAL_STEPS
+            ? <Button onClick={() => setStep(s => s + 1)} disabled={nextDisabled}>Siguiente</Button>
             : <Button onClick={finish} disabled={loading}>{loading ? 'Guardando...' : 'Ir al Dashboard'}</Button>
           }
         </div>

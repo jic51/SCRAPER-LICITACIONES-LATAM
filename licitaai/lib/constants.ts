@@ -27,3 +27,19 @@ export const AMOUNT_PRESETS = [
   { label: '$10M – $50M MXN',    min: 10_000_000,  max: 50_000_000 },
   { label: 'Más de $50M MXN',    min: 50_000_000,  max: 999_999_999 },
 ]
+
+export type CountryStatus = 'available' | 'soon'
+
+export const COUNTRIES: {
+  code: string; name: string; flag: string; status: CountryStatus; portal: string
+}[] = [
+  { code: 'MX', name: 'México',   flag: '🇲🇽', status: 'available', portal: 'CompraNet · Compras MX' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴', status: 'soon',      portal: 'SECOP II' },
+  { code: 'CL', name: 'Chile',    flag: '🇨🇱', status: 'soon',      portal: 'ChileCompra' },
+]
+
+// Estados/regiones por país. Hoy solo México está activo; los demás se
+// agregarán cuando se integre su portal.
+export const STATES_BY_COUNTRY: Record<string, string[]> = {
+  MX: MEXICO_STATES,
+}
