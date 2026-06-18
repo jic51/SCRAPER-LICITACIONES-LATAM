@@ -69,7 +69,14 @@ export async function GET(req: Request) {
       const target = new URL(source.url)
       const init: FetchInit = {
         method: source.method ?? 'GET',
-        headers: { Accept: 'application/json', 'User-Agent': 'LicitaAI-bot/1.0' },
+        // Headers tipo navegador: algunos portales (Akamai) bloquean clientes
+        // que no parecen un navegador real.
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
         // Falla limpio en 55s en vez de colgarse para siempre.
         signal: AbortSignal.timeout(55_000),
         // Tolera cadenas de certificado incompletas de servidores de gobierno.
