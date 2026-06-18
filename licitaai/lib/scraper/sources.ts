@@ -15,12 +15,12 @@ export type Source = NormalizeOpts & {
 // parámetros form-data. El normalizador tolera distintas envolturas de paquete.
 export const SOURCES: Source[] = [
   {
-    name: 'APF Federal — datos.gob.mx (CKAN)',
+    name: 'datos.gob.mx — búsqueda de datasets (CKAN package_search)',
     countryCode: 'MX',
     state: null,
     portalPrefix: 'APF',
-    url: 'https://datos.gob.mx/busca/api/3/action/datastore_search',
+    url: 'https://datos.gob.mx/api/3/action/package_search',
     method: 'GET',
-    body: { resource_id: '0252e19f-bdd6-43de-af7b-106d4c7a82c8', limit: '20' },
+    body: { q: 'contrataciones abiertas', rows: '3' },
   },
 ]

@@ -104,7 +104,7 @@ export async function GET(req: Request) {
 
       if (debug) {
         row.topKeys = describeShape(json)
-        row.sampleRaw = JSON.stringify(releases.length ? releases.slice(0, 2) : json).slice(0, 3000)
+        row.sampleRaw = JSON.stringify(releases.length ? releases.slice(0, 2) : json).slice(0, 8000)
       }
 
       const rows: RawInsert[] = releases
