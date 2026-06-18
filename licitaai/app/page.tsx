@@ -3,6 +3,7 @@ import {
   TrendingUp, AlertTriangle, Eye, Clock, MapPin, CheckCircle2,
 } from 'lucide-react'
 import RotatingTenderCard from '@/components/landing/RotatingTenderCard'
+import LandingPreview from '@/components/landing/LandingPreview'
 
 export const metadata = {
   title: 'LicitaAI — Tu Director de Licitaciones Virtual',
@@ -103,6 +104,9 @@ export default function Home() {
           <RotatingTenderCard />
         </div>
       </section>
+
+      {/* PREVIEW INTERACTIVO (sin registro) */}
+      <LandingPreview />
 
       {/* STATS BAR */}
       <section className="bg-slate-50 border-y border-slate-200">
