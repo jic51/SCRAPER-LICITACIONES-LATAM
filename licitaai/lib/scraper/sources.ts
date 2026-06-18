@@ -15,12 +15,21 @@ export type Source = NormalizeOpts & {
 // parámetros form-data. El normalizador tolera distintas envolturas de paquete.
 export const SOURCES: Source[] = [
   {
-    name: 'datos.gob.mx — búsqueda de datasets (CKAN package_search)',
+    name: 'A) histórico — búsqueda datasets (package_search)',
     countryCode: 'MX',
     state: null,
     portalPrefix: 'APF',
-    url: 'https://datos.gob.mx/api/3/action/package_search',
+    url: 'https://historico.datos.gob.mx/busca/api/3/action/package_search',
     method: 'GET',
-    body: { q: 'contrataciones abiertas', rows: '3' },
+    body: { q: 'contrataciones compranet', rows: '5' },
+  },
+  {
+    name: 'B) histórico — registros directos (datastore_search)',
+    countryCode: 'MX',
+    state: null,
+    portalPrefix: 'APF',
+    url: 'https://historico.datos.gob.mx/busca/api/3/action/datastore_search',
+    method: 'GET',
+    body: { resource_id: '0252e19f-bdd6-43de-af7b-106d4c7a82c8', limit: '5' },
   },
 ]
