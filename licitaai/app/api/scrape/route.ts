@@ -12,15 +12,27 @@ type SummaryRow = {
   normalized?: number
   upserted?: number
   error?: string
+  // Solo con ?debug=1
+  topKeys?: string | string[]
+  sampleRaw?: string
+}
+
+function describeShape(json: unknown): string | string[] {
+  if (Array.isArray(json)) return '[array]'
+  if (json && typeof json === 'object') return Object.keys(json as Record<string, unknown>)
+  return typeof json
 }
 
 // Motor de ingesta de licitaciones.
-// Se protege con CRON_SECRET: el cron de Vercel envía `Authorization: Bearer <CRON_SECRET>`
-// automáticamente; también se puede llamar manualmente con ?secret=<CRON_SECRET>.
+// Auth: el cron de Vercel envía `Authorization: Bearer <CRON_SECRET>` solo;
+// manualmente se llama con ?secret=<CRON_SECRET>.
+// ?debug=1 -> agrega la estructura cruda de la respuesta para diagnosticar.
 export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const debug = url.searchParams.get('debug') === '1'
+
   const secret = process.env.CRON_SECRET
   if (secret) {
-    const url = new URL(req.url)
     const provided =
       req.headers.get('authorization')?.replace('Bearer ', '') ||
       url.searchParams.get('secret')
@@ -42,39 +54,57 @@ export async function GET(req: Request) {
   const summary: SummaryRow[] = []
 
   for (const source of SOURCES) {
+    const row: SummaryRow = { source: source.name }
     try {
-      const res = await fetch(source.url, {
+      const init: RequestInit = {
+        method: source.method ?? 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'LicitaAI-bot/1.0' },
-      })
+      }
+      if (source.method === 'POST') {
+        init.body = new URLSearchParams(source.body ?? {})
+      }
+
+      const res = await fetch(source.url, init)
       if (!res.ok) {
-        summary.push({ source: source.name, error: `HTTP ${res.status}` })
+        row.error = `HTTP ${res.status}`
+        if (debug) {
+          const text = await res.text().catch(() => '')
+          row.sampleRaw = text.slice(0, 500)
+        }
+        summary.push(row)
         continue
       }
 
       const json: unknown = await res.json()
       const releases = extractReleases(json)
+      row.fetched = releases.length
+
+      if (debug) {
+        row.topKeys = describeShape(json)
+        row.sampleRaw = JSON.stringify(releases.slice(0, 2) ?? json).slice(0, 3000)
+      }
+
       const rows: RawInsert[] = releases
         .map((r) => releaseToLicitacion(r, source))
         .filter((x): x is RawInsert => x !== null)
+      row.normalized = rows.length
 
-      if (rows.length === 0) {
-        summary.push({ source: source.name, fetched: releases.length, normalized: 0, upserted: 0 })
-        continue
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from('licitaciones')
+          .upsert(rows, { onConflict: 'portal_id,country_code' })
+        if (error) {
+          row.error = error.message
+        } else {
+          row.upserted = rows.length
+        }
+      } else {
+        row.upserted = 0
       }
-
-      const { error } = await supabase
-        .from('licitaciones')
-        .upsert(rows, { onConflict: 'portal_id,country_code' })
-
-      if (error) {
-        summary.push({ source: source.name, fetched: releases.length, normalized: rows.length, error: error.message })
-        continue
-      }
-
-      summary.push({ source: source.name, fetched: releases.length, normalized: rows.length, upserted: rows.length })
     } catch (e) {
-      summary.push({ source: source.name, error: e instanceof Error ? e.message : String(e) })
+      row.error = e instanceof Error ? e.message : String(e)
     }
+    summary.push(row)
   }
 
   return NextResponse.json({ ok: true, ranAt: new Date().toISOString(), summary })

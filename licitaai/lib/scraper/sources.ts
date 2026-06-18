@@ -3,20 +3,27 @@ import type { NormalizeOpts } from './ocds'
 export type Source = NormalizeOpts & {
   name: string
   url: string
+  method?: 'GET' | 'POST'
+  // Para POST: se envía como application/x-www-form-urlencoded (form-data).
+  body?: Record<string, string>
 }
 
 // Fuentes de datos en formato OCDS. Para agregar un país/portal nuevo,
 // basta con añadir una entrada aquí. El normalizador es el mismo para todas.
 //
-// NOTA: la URL exacta puede necesitar ajuste según el endpoint que exponga
-// cada portal (algunos usan /tenders, /releases, paginación con ?page=, etc.).
-// El normalizador tolera distintas envolturas de paquete OCDS.
+// La API de CDMX (Tianguis Digital) expone el stage "plannings" vía POST con
+// parámetros form-data. El normalizador tolera distintas envolturas de paquete.
 export const SOURCES: Source[] = [
   {
     name: 'CDMX — Tianguis Digital (OCDS)',
     countryCode: 'MX',
     state: 'CDMX',
     portalPrefix: 'CDMX',
-    url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/tenders',
+    url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/plannings',
+    method: 'POST',
+    body: {
+      // Filtros opcionales; vacío intenta traer todo lo disponible.
+      consolidated: 'FALSE',
+    },
   },
 ]
