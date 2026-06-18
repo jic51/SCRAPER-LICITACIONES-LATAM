@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { Agent } from 'undici'
 import { extractReleases, releaseToLicitacion, type RawInsert } from '@/lib/scraper/ocds'
 import { SOURCES } from '@/lib/scraper/sources'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+// Muchos servidores de gobierno publican su cadena de certificados incompleta.
+// Este agente tolera esos certificados defectuosos (solo leemos datos públicos).
+const insecureAgent = new Agent({ connect: { rejectUnauthorized: false } })
+type FetchInit = RequestInit & { dispatcher?: unknown }
 
 type SummaryRow = {
   source: string
@@ -61,11 +67,13 @@ export async function GET(req: Request) {
     const row: SummaryRow = { source: source.name }
     try {
       const target = new URL(source.url)
-      const init: RequestInit = {
+      const init: FetchInit = {
         method: source.method ?? 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'LicitaAI-bot/1.0' },
-        // Falla limpio en 25s en vez de colgarse para siempre.
+        // Falla limpio en 55s en vez de colgarse para siempre.
         signal: AbortSignal.timeout(55_000),
+        // Tolera cadenas de certificado incompletas de servidores de gobierno.
+        dispatcher: insecureAgent,
       }
       if (source.method === 'POST') {
         init.body = new URLSearchParams(source.body ?? {})
