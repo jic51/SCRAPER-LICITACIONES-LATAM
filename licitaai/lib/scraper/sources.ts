@@ -15,15 +15,15 @@ export type Source = NormalizeOpts & {
 // parámetros form-data. El normalizador tolera distintas envolturas de paquete.
 export const SOURCES: Source[] = [
   {
-    name: 'CDMX — Tianguis Digital (OCDS)',
+    name: 'APF Federal — datos.gob.mx (CKAN)',
     countryCode: 'MX',
-    state: 'CDMX',
-    portalPrefix: 'CDMX',
-    url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/plannings',
+    state: null,
+    portalPrefix: 'APF',
+    url: 'https://datos.gob.mx/busca/api/3/action/datastore_search',
     method: 'GET',
     body: {
-      // API tipo Laravel: ?page=N devuelve una página pequeña y rápida.
-      page: '1',
+      resource_id: '0252e19f-bdd6-43de-af7b-106d4c7a82c8',
+      limit: '20',
     },
   },
 ]

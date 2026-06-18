@@ -57,6 +57,8 @@ export function extractReleases(json: unknown): OCDSRelease[] {
   if (Array.isArray(json)) return json.flatMap(extractReleases)
   const rec = asRecord(json)
   if (!rec) return []
+  // CKAN (datos.gob.mx) envuelve todo en { result: { records: [...] } }.
+  if (rec.result) return extractReleases(rec.result)
   if (Array.isArray(rec.releases)) return rec.releases as OCDSRelease[]
   if (Array.isArray(rec.records)) {
     return (rec.records as unknown[])
