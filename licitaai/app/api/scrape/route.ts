@@ -118,6 +118,10 @@ export async function GET(req: Request) {
       }
     } catch (e) {
       row.error = e instanceof Error ? e.message : String(e)
+      // Node esconde el motivo real (DNS/TLS/conexión) en .cause
+      if (e instanceof Error && e.cause) {
+        row.error += ` — causa: ${String((e.cause as { message?: string }).message ?? e.cause)}`
+      }
     }
     summary.push(row)
   }
