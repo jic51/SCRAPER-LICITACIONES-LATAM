@@ -65,7 +65,7 @@ export async function GET(req: Request) {
         method: source.method ?? 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'LicitaAI-bot/1.0' },
         // Falla limpio en 25s en vez de colgarse para siempre.
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(55_000),
       }
       if (source.method === 'POST') {
         init.body = new URLSearchParams(source.body ?? {})
@@ -96,7 +96,7 @@ export async function GET(req: Request) {
 
       if (debug) {
         row.topKeys = describeShape(json)
-        row.sampleRaw = JSON.stringify(releases.slice(0, 2) ?? json).slice(0, 3000)
+        row.sampleRaw = JSON.stringify(releases.length ? releases.slice(0, 2) : json).slice(0, 3000)
       }
 
       const rows: RawInsert[] = releases

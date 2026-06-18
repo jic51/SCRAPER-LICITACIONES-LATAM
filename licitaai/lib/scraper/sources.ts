@@ -22,9 +22,8 @@ export const SOURCES: Source[] = [
     url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/plannings',
     method: 'GET',
     body: {
-      // Filtro para no descargar todo el histórico (evita respuestas enormes).
-      // Formato dd/mm/yyyy según la doc del portal.
-      start_date: '01/01/2026',
+      // API tipo Laravel: ?page=N devuelve una página pequeña y rápida.
+      page: '1',
     },
   },
 ]
