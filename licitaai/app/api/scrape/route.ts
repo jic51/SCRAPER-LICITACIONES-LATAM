@@ -15,7 +15,11 @@ type SummaryRow = {
   // Solo con ?debug=1
   topKeys?: string | string[]
   sampleRaw?: string
+  bytes?: number
 }
+
+// Tope de tamaño de respuesta para no agotar memoria (30 MB).
+const MAX_BYTES = 30_000_000
 
 function describeShape(json: unknown): string | string[] {
   if (Array.isArray(json)) return '[array]'
@@ -56,26 +60,37 @@ export async function GET(req: Request) {
   for (const source of SOURCES) {
     const row: SummaryRow = { source: source.name }
     try {
+      const target = new URL(source.url)
       const init: RequestInit = {
         method: source.method ?? 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'LicitaAI-bot/1.0' },
+        // Falla limpio en 25s en vez de colgarse para siempre.
+        signal: AbortSignal.timeout(25_000),
       }
       if (source.method === 'POST') {
         init.body = new URLSearchParams(source.body ?? {})
+      } else if (source.body) {
+        // En GET los filtros van como query params.
+        for (const [k, v] of Object.entries(source.body)) target.searchParams.set(k, v)
       }
 
-      const res = await fetch(source.url, init)
+      const res = await fetch(target, init)
+      const text = await res.text()
+      if (debug) row.bytes = text.length
+
       if (!res.ok) {
         row.error = `HTTP ${res.status}`
-        if (debug) {
-          const text = await res.text().catch(() => '')
-          row.sampleRaw = text.slice(0, 500)
-        }
+        if (debug) row.sampleRaw = text.slice(0, 500)
+        summary.push(row)
+        continue
+      }
+      if (text.length > MAX_BYTES) {
+        row.error = `Respuesta demasiado grande (${text.length} bytes) — agrega más filtros.`
         summary.push(row)
         continue
       }
 
-      const json: unknown = await res.json()
+      const json: unknown = JSON.parse(text)
       const releases = extractReleases(json)
       row.fetched = releases.length
 
