@@ -40,6 +40,7 @@ export type Licitacion = {
   deadline: string | null
   pdf_url: string | null
   found_at: string
+  published_at: string | null
 }
 
 export type FitScoreAnalysisItem = {

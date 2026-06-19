@@ -102,6 +102,7 @@ export function releaseToLicitacion(r: OCDSRelease, opts: NormalizeOpts): RawIns
     state: opts.state,
     amount: typeof tender?.value?.amount === 'number' ? Math.round(tender.value.amount) : null,
     deadline: tender?.tenderPeriod?.endDate ?? null,
+    published_at: null,
     pdf_url: pdf,
   }
 }

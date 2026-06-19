@@ -53,6 +53,10 @@ const CANDIDATES: Record<string, string[]> = {
   state: [
     'entidad_federativa',
   ],
+  published: [
+    'fecha_de_publicacion', 'fecha_publicacion',
+    'fecha_de_expediente', 'fecha_expediente',
+  ],
   pdf: [
     'direccion_anuncio', 'direccion_del_anuncio', 'anuncio',
   ],
@@ -134,6 +138,7 @@ export function parseCsv(
       state,
       amount: toAmount(pick(rec, keysNorm, CANDIDATES.amount)),
       deadline: toDate(pick(rec, keysNorm, CANDIDATES.deadline)),
+      published_at: toDate(pick(rec, keysNorm, CANDIDATES.published)),
       pdf_url: pick(rec, keysNorm, CANDIDATES.pdf),
     })
   }

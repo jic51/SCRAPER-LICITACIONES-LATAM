@@ -50,28 +50,29 @@ export default async function DashboardPage({
     (scores ?? []).map((s: Pick<FitScore, 'licitacion_id' | 'score'>) => [s.licitacion_id, s.score])
   )
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
   const allItems = ((licitaciones ?? []) as Licitacion[]).map((l) => {
     const stored = scoreById.get(l.id)
     const days = getDaysUntilDeadline(l.deadline)
-    const isExpired = days !== null && days < -7  // tolerancia de 7 días
+    // Vencida = tiene deadline Y venció hace más de 30 días
+    const isExpired = days !== null && days < -30
+    // Fecha de publicación real del gobierno (si existe) o cuando la importamos
+    const pubDate = l.published_at ?? l.found_at
     return {
       ...l,
       score: stored ?? estimateMatchScore(l, filters),
       source: stored !== undefined ? ('analizado' as const) : ('estimado' as const),
       isExpired,
       days,
+      pubDate,
     }
   })
 
-  // Por defecto: vigentes (sin deadline o deadline reciente) primero.
-  // Con ?mostrar=todas: se incluyen también las vencidas (grises).
+  // Por defecto: no vencidas (vigentes o recientes) ordenadas por score.
+  // Con ?mostrar=todas: se incluyen también las vencidas (grises al fondo).
   const vigentes = allItems.filter((l) => !l.isExpired)
   const vencidas = allItems.filter((l) => l.isExpired)
   const items = mostrarVencidas
-    ? [...vigentes, ...vencidas].sort((a, b) => b.score - a.score)
+    ? [...vigentes.sort((a, b) => b.score - a.score), ...vencidas.sort((a, b) => b.score - a.score)]
     : vigentes.sort((a, b) => b.score - a.score)
 
   const high = vigentes.filter((l) => l.score >= 70).length
@@ -144,10 +145,13 @@ export default async function DashboardPage({
             const deadlineLabel =
               l.days === null ? 'Sin fecha límite'
               : l.days === 0 ? '⚠️ Vence hoy'
-              : l.days < 0 ? `Venció hace ${Math.abs(l.days)} días`
-              : l.days <= 5 ? `⚠️ Vence en ${l.days} días`
-              : `Vence en ${l.days} días`
+              : l.days > 0 && l.days <= 5 ? `⚠️ Vence en ${l.days} días`
+              : l.days > 0 ? `Vence en ${l.days} días`
+              : `Venció hace ${Math.abs(l.days)} días`
             const isUrgent = l.days !== null && l.days >= 0 && l.days <= 5
+            const pubLabel = l.pubDate
+              ? new Date(l.pubDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+              : null
 
             return (
               <Link
@@ -176,6 +180,9 @@ export default async function DashboardPage({
                       <span className={isUrgent ? 'text-orange-400 font-medium' : ''}>
                         {deadlineLabel}
                       </span>
+                      {pubLabel && (
+                        <span className="ml-2 text-slate-500 text-xs">· Pub. {pubLabel}</span>
+                      )}
                       {l.source === 'estimado' && (
                         <span className="ml-2 text-xs text-slate-500">(estimado)</span>
                       )}
