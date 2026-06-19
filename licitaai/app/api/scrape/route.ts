@@ -71,13 +71,17 @@ export async function GET(req: Request) {
   if (probe) {
     try {
       const isPost = url.searchParams.get('post') === '1'
+      const referer = url.searchParams.get('ref') ?? 'https://comprasmx.buengobierno.gob.mx/sitiopublico/'
       const res = await undiciFetch(probe, {
         method: isPost ? 'POST' : 'GET',
         headers: {
-          Accept: '*/*',
+          Accept: 'application/json, text/plain, */*',
           'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Origin: 'https://comprasmx.buengobierno.gob.mx',
+          Referer: referer,
+          'Cache-Control': 'no-cache',
           ...(isPost ? { 'Content-Type': url.searchParams.get('ct') ?? 'application/json' } : {}),
         },
         body: isPost ? (url.searchParams.get('payload') ?? '{}') : undefined,
