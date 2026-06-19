@@ -64,8 +64,10 @@ export async function GET(req: Request) {
   // Modo explorador: ?probe=<url> trae cualquier URL a través de esta máquina
   // (con bypass de certificado/Akamai) y devuelve la respuesta cruda. Sirve
   // para descubrir endpoints de portales que no podemos inspeccionar de otra
-  // forma. Acepta ?post=1 y ?ct=<content-type> para probar peticiones POST.
-  const probe = url.searchParams.get('probe')
+  // forma. Para no romperse cuando la URL objetivo trae sus propios ?param=,
+  // tomamos todo lo que viene crudo después de "probe=" en la URL original.
+  const rawProbeMatch = req.url.match(/[?&]probe=(.+)$/)
+  const probe = rawProbeMatch ? decodeURIComponent(rawProbeMatch[1]) : null
   if (probe) {
     try {
       const isPost = url.searchParams.get('post') === '1'
