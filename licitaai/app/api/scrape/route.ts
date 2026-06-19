@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { fetch as undiciFetch, Agent, type RequestInit as UndiciRequestInit } from 'undici'
 import { extractReleases, releaseToLicitacion, type RawInsert } from '@/lib/scraper/ocds'
 import { parseCsv } from '@/lib/scraper/csv'
-import { SOURCES } from '@/lib/scraper/sources'
+import { SOURCES, type Source } from '@/lib/scraper/sources'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -32,6 +32,64 @@ function describeShape(json: unknown): string | string[] {
   if (Array.isArray(json)) return '[array]'
   if (json && typeof json === 'object') return Object.keys(json as Record<string, unknown>)
   return typeof json
+}
+
+const BROWSER_HEADERS = {
+  Accept: 'text/csv,application/json,*/*',
+  'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+}
+
+// Descarga un CSV grande priorizando lo MÁS RECIENTE. Los archivos de Compras
+// MX están ordenados del más viejo al más nuevo, así que pedimos el TRAMO FINAL
+// del archivo (suffix range) para traer las últimas filas. Como ese tramo no
+// incluye el encabezado, lo traemos aparte con una petición pequeña al inicio.
+async function fetchRecentCsv(
+  url: string
+): Promise<{ ok: true; text: string; bytes: number } | { ok: false; status: number }> {
+  const tailRes = await undiciFetch(url, {
+    headers: { ...BROWSER_HEADERS, Range: 'bytes=-4000000' },
+    signal: AbortSignal.timeout(45_000),
+    dispatcher: insecureAgent,
+  })
+  if (!tailRes.ok && tailRes.status !== 206) {
+    return { ok: false, status: tailRes.status }
+  }
+  const contentRange = tailRes.headers.get('content-range') // "bytes 106133160-110133159/110133160"
+  const tailBuf = await tailRes.arrayBuffer()
+  const tailText = new TextDecoder('windows-1252').decode(tailBuf)
+
+  // Si el servidor ignoró el Range (200) o el tramo empieza en el byte 0, ya
+  // tenemos el archivo completo (con encabezado): se usa tal cual.
+  const wholeFile = tailRes.status === 200 || !contentRange || /bytes\s+0[-/]/.test(contentRange)
+  if (wholeFile) {
+    return { ok: true, text: tailText, bytes: tailBuf.byteLength }
+  }
+
+  // Tramo parcial: traemos el encabezado del inicio y descartamos la primera
+  // línea del tramo (que viene cortada a la mitad).
+  const headRes = await undiciFetch(url, {
+    headers: { ...BROWSER_HEADERS, Range: 'bytes=0-100000' },
+    signal: AbortSignal.timeout(20_000),
+    dispatcher: insecureAgent,
+  })
+  const headText = new TextDecoder('windows-1252').decode(await headRes.arrayBuffer())
+  const headerLine = headText.slice(0, headText.indexOf('\n'))
+  const tailBody = tailText.slice(tailText.indexOf('\n') + 1)
+  return { ok: true, text: `${headerLine}\n${tailBody}`, bytes: tailBuf.byteLength }
+}
+
+// Elimina filas duplicadas por (portal_id, country_code) dentro de un mismo
+// lote. El CSV repite un expediente cuando tiene varios anuncios/contratos, y
+// Postgres rechaza un upsert con la misma llave dos veces en la misma orden.
+function dedupeRows(rows: RawInsert[]): RawInsert[] {
+  const seen = new Map<string, RawInsert>()
+  for (const r of rows) {
+    const key = `${r.country_code}::${r.portal_id}`
+    if (!seen.has(key)) seen.set(key, r)
+  }
+  return Array.from(seen.values())
 }
 
 // Motor de ingesta de licitaciones.
@@ -149,46 +207,18 @@ export async function GET(req: Request) {
   for (const source of SOURCES) {
     const row: SummaryRow = { source: source.name }
     try {
-      const target = new URL(source.url)
-      const init: UndiciRequestInit = {
-        method: source.method ?? 'GET',
-        // Headers tipo navegador: algunos portales (Akamai) bloquean clientes
-        // que no parecen un navegador real.
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          // Para CSV grandes: pide solo los primeros ~4 MB (suficientes filas).
-          ...(source.format === 'csv' ? { Range: 'bytes=0-4000000' } : {}),
-        },
-        // Falla limpio en 55s en vez de colgarse para siempre.
-        signal: AbortSignal.timeout(55_000),
-        // Tolera cadenas de certificado incompletas de servidores de gobierno.
-        dispatcher: insecureAgent,
-      }
-      if (source.method === 'POST') {
-        init.body = new URLSearchParams(source.body ?? {})
-      } else if (source.body) {
-        // En GET los filtros van como query params.
-        for (const [k, v] of Object.entries(source.body)) target.searchParams.set(k, v)
-      }
-
-      const res = await undiciFetch(target, init)
-
       let rows: RawInsert[] = []
 
       if (source.format === 'csv') {
-        // CSV de CompraNet suele venir en Windows-1252 (acentos).
-        const buf = await res.arrayBuffer()
-        if (debug) row.bytes = buf.byteLength
-        if (!res.ok) {
-          row.error = `HTTP ${res.status}`
+        // Descarga el tramo final (lo más reciente) + encabezado del inicio.
+        const csv = await fetchRecentCsv(source.url)
+        if (!csv.ok) {
+          row.error = `HTTP ${csv.status}`
           summary.push(row)
           continue
         }
-        const text = new TextDecoder('windows-1252').decode(buf)
-        const parsed = parseCsv(text, source)
+        if (debug) row.bytes = csv.bytes
+        const parsed = parseCsv(csv.text, source)
         rows = parsed.rows
         row.fetched = parsed.total
         row.normalized = rows.length
@@ -197,6 +227,19 @@ export async function GET(req: Request) {
           row.sampleRaw = JSON.stringify(rows.slice(0, 2)).slice(0, 4000)
         }
       } else {
+        const target = new URL(source.url)
+        const init: UndiciRequestInit = {
+          method: source.method ?? 'GET',
+          headers: { ...BROWSER_HEADERS },
+          signal: AbortSignal.timeout(55_000),
+          dispatcher: insecureAgent,
+        }
+        if (source.method === 'POST') {
+          init.body = new URLSearchParams(source.body ?? {})
+        } else if (source.body) {
+          for (const [k, v] of Object.entries(source.body)) target.searchParams.set(k, v)
+        }
+        const res = await undiciFetch(target, init)
         const text = await res.text()
         if (debug) row.bytes = text.length
         if (!res.ok) {
@@ -222,6 +265,8 @@ export async function GET(req: Request) {
           .filter((x): x is RawInsert => x !== null)
         row.normalized = rows.length
       }
+
+      rows = dedupeRows(rows)
 
       if (rows.length > 0) {
         const { error } = await supabase

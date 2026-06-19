@@ -112,7 +112,11 @@ export function parseCsv(
 
   const limit = opts.limit ?? 200
   const rows: RawInsert[] = []
-  for (const rec of records.slice(0, limit)) {
+  // Los archivos de Compras MX vienen ordenados del más viejo al más nuevo,
+  // así que tomamos las ÚLTIMAS filas (las más recientes) y las recorremos
+  // en orden inverso para que lo más nuevo quede primero.
+  const recent = records.slice(-limit).reverse()
+  for (const rec of recent) {
     const title = pick(rec, keysNorm, CANDIDATES.title)
     const pid = pick(rec, keysNorm, CANDIDATES.portalId)
     if (!title || !pid) continue

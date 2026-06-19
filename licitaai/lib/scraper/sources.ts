@@ -42,12 +42,14 @@ function contratosYear(year: number): Source {
 }
 
 export const SOURCES: Source[] = [
-  // Expedientes vigentes: intentamos 2025 primero (puede no existir aún → 404
-  // silencioso), luego 2024 confirmado.
+  // Orden por prioridad: primero lo más reciente (2026), luego hacia atrás.
+  // Los años que aún no existan dan 404 y se ignoran solos.
+  // Expedientes = licitaciones/procedimientos publicados (lo que busca el cliente).
+  expedientesYear(2026),
   expedientesYear(2025),
   expedientesYear(2024),
 
-  // Contratos con montos: 2025 confirmado, 2024 como respaldo.
+  // Contratos = ya adjudicados, pero traen el monto (Importe DRC).
+  contratosYear(2026),
   contratosYear(2025),
-  contratosYear(2024),
 ]
