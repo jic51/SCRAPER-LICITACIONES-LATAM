@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Agent } from 'undici'
+import { fetch as undiciFetch, Agent, type RequestInit as UndiciRequestInit } from 'undici'
 import { extractReleases, releaseToLicitacion, type RawInsert } from '@/lib/scraper/ocds'
 import { parseCsv } from '@/lib/scraper/csv'
 import { SOURCES } from '@/lib/scraper/sources'
@@ -11,7 +11,6 @@ export const maxDuration = 60
 // Muchos servidores de gobierno publican su cadena de certificados incompleta.
 // Este agente tolera esos certificados defectuosos (solo leemos datos públicos).
 const insecureAgent = new Agent({ connect: { rejectUnauthorized: false } })
-type FetchInit = RequestInit & { dispatcher?: unknown }
 
 type SummaryRow = {
   source: string
@@ -69,7 +68,7 @@ export async function GET(req: Request) {
     const row: SummaryRow = { source: source.name }
     try {
       const target = new URL(source.url)
-      const init: FetchInit = {
+      const init: UndiciRequestInit = {
         method: source.method ?? 'GET',
         // Headers tipo navegador: algunos portales (Akamai) bloquean clientes
         // que no parecen un navegador real.
@@ -93,7 +92,7 @@ export async function GET(req: Request) {
         for (const [k, v] of Object.entries(source.body)) target.searchParams.set(k, v)
       }
 
-      const res = await fetch(target, init)
+      const res = await undiciFetch(target, init)
 
       let rows: RawInsert[] = []
 
