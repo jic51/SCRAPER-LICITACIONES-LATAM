@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import {
   getScoreColor, formatAmount, getDaysUntilDeadline, estimateMatchScore,
@@ -78,7 +79,11 @@ export default async function DashboardPage() {
             const color = getScoreColor(l.score)
             const days = getDaysUntilDeadline(l.deadline)
             return (
-              <div key={l.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between hover:border-slate-600 transition-colors">
+              <Link
+                key={l.id}
+                href={`/licitaciones/${l.id}`}
+                className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between hover:border-slate-600 hover:bg-slate-800/60 transition-colors"
+              >
                 <div className="flex items-center gap-4 min-w-0">
                   <span className={`text-2xl font-bold w-14 shrink-0 ${colorClass[color]}`}>{l.score}%</span>
                   <div className="min-w-0">
@@ -92,8 +97,8 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-blue-400 text-sm ml-4 whitespace-nowrap">Ver detalle →</span>
-              </div>
+                <span className="text-blue-400 text-sm ml-4 whitespace-nowrap shrink-0">Ver detalle →</span>
+              </Link>
             )
           })}
         </div>
