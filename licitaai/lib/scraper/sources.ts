@@ -12,20 +12,28 @@ export type Source = NormalizeOpts & {
   limit?: number
 }
 
-// Fuentes de datos. Para agregar un país/portal nuevo, basta con añadir una
-// entrada aquí.
-//
 // CompraNet (SHCP) publica los contratos como archivos CSV directos, un archivo
 // por año, con el patrón:
 //   https://compranetinfo.hacienda.gob.mx/datosabiertos/Contratos{AÑO}.csv
-export const SOURCES: Source[] = [
-  {
-    name: 'CompraNet — Contratos 2016 (CSV, SHCP)',
+// Generamos candidatos de años recientes; los que no existan darán 404 y se
+// ignoran solos. Así descubrimos el año más reciente disponible.
+function compranetYear(year: number): Source {
+  return {
+    name: `CompraNet — Contratos ${year} (CSV)`,
     countryCode: 'MX',
     state: null,
-    portalPrefix: 'CN2016',
-    url: 'https://compranetinfo.hacienda.gob.mx/datosabiertos/Contratos2016.csv',
+    portalPrefix: `CN${year}`,
+    url: `https://compranetinfo.hacienda.gob.mx/datosabiertos/Contratos${year}.csv`,
     format: 'csv',
-    limit: 100,
-  },
+    limit: 40,
+  }
+}
+
+export const SOURCES: Source[] = [
+  compranetYear(2024),
+  compranetYear(2023),
+  compranetYear(2022),
+  compranetYear(2021),
+  compranetYear(2020),
+  compranetYear(2019),
 ]
