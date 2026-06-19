@@ -45,11 +45,12 @@ export const SOURCES: Source[] = [
   // Orden por prioridad: primero lo más reciente (2026), luego hacia atrás.
   // Los años que aún no existan dan 404 y se ignoran solos.
   // Expedientes = licitaciones/procedimientos publicados (lo que busca el cliente).
-  expedientesYear(2026),
+  // El gobierno suele publicar el archivo del año en curso a mediados del año.
+  expedientesYear(2026),        // puede no existir aún → 404 silencioso
   expedientesYear(2025),
   expedientesYear(2024),
 
   // Contratos = ya adjudicados, pero traen el monto (Importe DRC).
-  contratosYear(2026),
+  contratosYear(2026),          // puede no existir aún → 404 silencioso
   contratosYear(2025),
 ]
