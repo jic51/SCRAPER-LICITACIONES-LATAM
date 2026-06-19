@@ -90,6 +90,24 @@ export async function GET(req: Request) {
       })
       const text = await res.text()
 
+      // ?snippet=<palabra> -> devuelve fragmentos de texto alrededor de cada
+      // aparición de esa palabra. Sirve para ver cómo un bundle JS arma una URL
+      // (p.ej. cómo concatena la base del API con "/procedimiento").
+      const snippetKey = url.searchParams.get('snippet')
+      if (snippetKey) {
+        const out: string[] = []
+        const lower = text.toLowerCase()
+        const key = snippetKey.toLowerCase()
+        let from = 0
+        while (out.length < 40) {
+          const i = lower.indexOf(key, from)
+          if (i === -1) break
+          out.push(text.slice(Math.max(0, i - 140), i + key.length + 140))
+          from = i + key.length
+        }
+        return NextResponse.json({ probe, status: res.status, matches: out.length, snippets: out })
+      }
+
       // ?extract=urls -> en vez del cuerpo crudo, devuelve todas las URLs y
       // rutas tipo API encontradas en el contenido. Ideal para descubrir el
       // backend de una SPA escondido en su bundle de JavaScript.
