@@ -85,6 +85,28 @@ export async function GET(req: Request) {
         dispatcher: insecureAgent,
       })
       const text = await res.text()
+
+      // ?extract=urls -> en vez del cuerpo crudo, devuelve todas las URLs y
+      // rutas tipo API encontradas en el contenido. Ideal para descubrir el
+      // backend de una SPA escondido en su bundle de JavaScript.
+      if (url.searchParams.get('extract') === 'urls') {
+        const absolute = text.match(/https?:\/\/[a-zA-Z0-9._~:/?#@!$&'()*+,;=%-]+/g) ?? []
+        // Rutas relativas dentro de comillas que parezcan endpoints de API.
+        const relative = (text.match(/["'`](\/[a-zA-Z0-9_\-/.]{2,})["'`]/g) ?? [])
+          .map((s) => s.slice(1, -1))
+          .filter((s) => /api|servic|consult|buscar|procedimiento|anuncio|contrat|dato/i.test(s))
+        const clean = (s: string) => s.replace(/["'`\\].*$/, '').replace(/[.,;)]+$/, '')
+        const unique = Array.from(new Set([...absolute.map(clean), ...relative]))
+          .filter((u) => !/\.(png|jpg|jpeg|svg|gif|ico|woff2?|ttf|css|map)(\?|$)/i.test(u))
+          .filter((u) => !/w3\.org|googletagmanager|google\.com|gstatic|cdn\.gob\.mx\/(assets|gm)/i.test(u))
+        return NextResponse.json({
+          probe,
+          status: res.status,
+          totalFound: unique.length,
+          urls: unique.slice(0, 120),
+        })
+      }
+
       return NextResponse.json({
         probe,
         status: res.status,
