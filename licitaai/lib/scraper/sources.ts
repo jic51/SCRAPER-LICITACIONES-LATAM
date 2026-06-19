@@ -4,36 +4,50 @@ export type Source = NormalizeOpts & {
   name: string
   url: string
   method?: 'GET' | 'POST'
-  // 'csv' descarga y parsea un archivo CSV; por defecto se trata como JSON/OCDS.
   format?: 'json' | 'csv'
-  // Para POST/GET: parámetros (form-data en POST, query string en GET).
   body?: Record<string, string>
-  // Máximo de filas a importar por corrida (solo CSV).
   limit?: number
 }
 
-// CompraNet (SHCP) publica los contratos como archivos CSV directos, un archivo
-// por año, con el patrón:
-//   https://compranetinfo.hacienda.gob.mx/datosabiertos/Contratos{AÑO}.csv
-// Generamos candidatos de años recientes; los que no existan darán 404 y se
-// ignoran solos. Así descubrimos el año más reciente disponible.
-function compranetYear(year: number): Source {
+// Dominio activo (migrado de compranetinfo.hacienda.gob.mx y
+// upcp-compranet.funcionpublica.gob.mx que ya no existen).
+const BASE = 'https://upcp-compranet.buengobierno.gob.mx/cnetassets/datos_abiertos_contratos_expedientes'
+
+// Expedientes = licitaciones/procedimientos publicados (incluye estado por fila).
+// Límite alto porque el archivo es grande (~110 MB) pero lo descargamos por Range.
+function expedientesYear(year: number): Source {
   return {
-    name: `CompraNet — Contratos ${year} (CSV)`,
+    name: `Compras MX — Expedientes ${year}`,
+    countryCode: 'MX',
+    state: null,           // el CSV trae "Entidad Federativa" por fila
+    portalPrefix: `MX-EXP${year}`,
+    url: `${BASE}/Expedientes_PICompraNet${year}.csv`,
+    format: 'csv',
+    limit: 500,
+  }
+}
+
+// Contratos = contratos firmados (incluye Importe DRC — el único campo con monto).
+// Útil como fuente secundaria para enriquecer la vista con montos reales.
+function contratosYear(year: number): Source {
+  return {
+    name: `Compras MX — Contratos ${year}`,
     countryCode: 'MX',
     state: null,
-    portalPrefix: `CN${year}`,
-    url: `https://compranetinfo.hacienda.gob.mx/datosabiertos/Contratos${year}.csv`,
+    portalPrefix: `MX-CON${year}`,
+    url: `${BASE}/Contratos_CompraNet${year}.csv`,
     format: 'csv',
-    limit: 40,
+    limit: 300,
   }
 }
 
 export const SOURCES: Source[] = [
-  compranetYear(2024),
-  compranetYear(2023),
-  compranetYear(2022),
-  compranetYear(2021),
-  compranetYear(2020),
-  compranetYear(2019),
+  // Expedientes vigentes: intentamos 2025 primero (puede no existir aún → 404
+  // silencioso), luego 2024 confirmado.
+  expedientesYear(2025),
+  expedientesYear(2024),
+
+  // Contratos con montos: 2025 confirmado, 2024 como respaldo.
+  contratosYear(2025),
+  contratosYear(2024),
 ]
