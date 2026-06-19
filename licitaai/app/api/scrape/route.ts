@@ -61,6 +61,42 @@ export async function GET(req: Request) {
     )
   }
 
+  // Modo explorador: ?probe=<url> trae cualquier URL a través de esta máquina
+  // (con bypass de certificado/Akamai) y devuelve la respuesta cruda. Sirve
+  // para descubrir endpoints de portales que no podemos inspeccionar de otra
+  // forma. Acepta ?post=1 y ?ct=<content-type> para probar peticiones POST.
+  const probe = url.searchParams.get('probe')
+  if (probe) {
+    try {
+      const isPost = url.searchParams.get('post') === '1'
+      const res = await undiciFetch(probe, {
+        method: isPost ? 'POST' : 'GET',
+        headers: {
+          Accept: '*/*',
+          'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          ...(isPost ? { 'Content-Type': url.searchParams.get('ct') ?? 'application/json' } : {}),
+        },
+        body: isPost ? (url.searchParams.get('payload') ?? '{}') : undefined,
+        signal: AbortSignal.timeout(30_000),
+        dispatcher: insecureAgent,
+      })
+      const text = await res.text()
+      return NextResponse.json({
+        probe,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        length: text.length,
+        body: text.slice(0, 6000),
+      })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const cause = e instanceof Error && e.cause ? ` — causa: ${String((e.cause as { message?: string }).message ?? e.cause)}` : ''
+      return NextResponse.json({ probe, error: msg + cause })
+    }
+  }
+
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
   const summary: SummaryRow[] = []
 
