@@ -56,13 +56,18 @@ export default async function DashboardPage({
   // Estatutos que el gobierno marca como ya cerrado — no son oportunidades.
   const CLOSED_STATUSES = new Set(['ADJUDICADO', 'ADJUDICADA', 'DESIERTA', 'CANCELADA', 'CANCELADO'])
 
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+
   const allItems = ((licitaciones ?? []) as Licitacion[]).map((l) => {
     const stored = scoreById.get(l.id)
     const days = getDaysUntilDeadline(l.deadline)
-    // Cerrada = el gobierno la marcó como cerrada, O venció hace más de 30 días.
     const statusClosed = l.procedure_status ? CLOSED_STATUSES.has(l.procedure_status) : false
-    const isExpired = statusClosed || (days !== null && days < -30)
     const pubDate = l.published_at ?? l.found_at
+    // Sin fecha límite + publicada hace más de 90 días → casi seguro ya cerró.
+    const oldWithNoDeadline = days === null && pubDate
+      ? new Date(pubDate) < ninetyDaysAgo
+      : false
+    const isExpired = statusClosed || (days !== null && days < -30) || oldWithNoDeadline
     return {
       ...l,
       score: stored ?? estimateMatchScore(l, filters),
