@@ -42,5 +42,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // El middleware solo protege páginas. Excluimos /api porque esas rutas
+  // manejan su propia autenticación (p.ej. /api/scrape usa CRON_SECRET) y no
+  // deben depender de las variables de Supabase para responder.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
