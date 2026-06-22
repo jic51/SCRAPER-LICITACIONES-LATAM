@@ -32,15 +32,18 @@ export default async function DashboardPage({
     .from('users').select('country_code').eq('id', user!.id).single()
   const countryCode = profile?.country_code ?? 'MX'
 
-  // Traemos 200 licitaciones ordenadas por fecha de ingesta (las más recientes
-  // del scraper primero). Luego filtramos, puntuamos y re-ordenamos en memoria.
+  // Traemos 200 licitaciones priorizando las publicadas más recientemente.
+  // (published_at = fecha real del gobierno; las que aún no la tienen quedan
+  // al final hasta el próximo scraping). Luego filtramos y puntuamos en memoria.
   const [{ data: filtersRow }, { data: licitaciones }, { data: scores }] = await Promise.all([
     supabase.from('user_filters')
       .select('sectors, states, min_amount, max_amount, keywords')
       .eq('user_id', user!.id).maybeSingle(),
     supabase.from('licitaciones')
       .select('*').eq('country_code', countryCode)
-      .order('found_at', { ascending: false }).limit(200),
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .order('found_at', { ascending: false })
+      .limit(200),
     supabase.from('fit_scores')
       .select('licitacion_id, score').eq('user_id', user!.id),
   ])
@@ -67,13 +70,25 @@ export default async function DashboardPage({
     }
   })
 
-  // Por defecto: no vencidas (vigentes o recientes) ordenadas por score.
+  // Orden: primero por compatibilidad (score), y a igual score, lo más
+  // recientemente publicado primero.
+  const byScoreThenDate = (
+    a: { score: number; pubDate: string | null },
+    b: { score: number; pubDate: string | null }
+  ) => {
+    if (b.score !== a.score) return b.score - a.score
+    const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0
+    const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0
+    return tb - ta
+  }
+
+  // Por defecto: no vencidas (vigentes o recientes).
   // Con ?mostrar=todas: se incluyen también las vencidas (grises al fondo).
   const vigentes = allItems.filter((l) => !l.isExpired)
   const vencidas = allItems.filter((l) => l.isExpired)
   const items = mostrarVencidas
-    ? [...vigentes.sort((a, b) => b.score - a.score), ...vencidas.sort((a, b) => b.score - a.score)]
-    : vigentes.sort((a, b) => b.score - a.score)
+    ? [...vigentes.sort(byScoreThenDate), ...vencidas.sort(byScoreThenDate)]
+    : vigentes.sort(byScoreThenDate)
 
   const high = vigentes.filter((l) => l.score >= 70).length
   const countryName = COUNTRY_NAMES[countryCode] ?? countryCode
