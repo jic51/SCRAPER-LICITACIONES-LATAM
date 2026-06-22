@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LicitaAI — Proyección Financiera (Año 0–5)</title>
+<style>
+  :root {
+    --bg: #0b1120; --panel: #111a2e; --panel2: #0f1729; --border: #1e293b;
+    --text: #e2e8f0; --muted: #94a3b8; --dim: #64748b;
+    --green: #34d399; --red: #f87171; --blue: #60a5fa; --yellow: #fbbf24;
+    --opt: #34d399; --norm: #60a5fa; --pes: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 34px 0 12px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+  .tab {
+    cursor: pointer; padding: 8px 16px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--muted); font-size: 14px; font-weight: 600;
+    transition: all .15s;
+  }
+  .tab:hover { border-color: var(--dim); }
+  .tab.active.opt { background: rgba(52,211,153,.15); border-color: var(--opt); color: var(--opt); }
+  .tab.active.norm { background: rgba(96,165,250,.15); border-color: var(--norm); color: var(--norm); }
+  .tab.active.pes { background: rgba(248,113,113,.15); border-color: var(--pes); color: var(--pes); }
+  .toggle {
+    margin-left: auto; display: flex; gap: 6px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 9px; padding: 4px;
+  }
+  .toggle button {
+    cursor: pointer; border: 0; background: transparent; color: var(--muted);
+    padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  }
+  .toggle button.on { background: var(--blue); color: #001; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .card .val { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .card .note { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media (max-width: 760px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .chart-box h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
+  canvas { width: 100%; height: 220px; display: block; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel2); text-align: right; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel2); }
+  tbody tr:hover td { background: var(--panel); }
+  .yearsep td { border-top: 2px solid var(--dim); font-weight: 700; }
+  .tbl-wrap { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel2); }
+  .assump { background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 18px 0; }
+  .assump-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 22px; }
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 6px 9px; font-size: 13px; }
+  details summary { cursor: pointer; color: var(--blue); font-size: 13px; font-weight: 600; }
+  .btn { cursor: pointer; background: var(--blue); color: #001; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+  .small { font-size: 12px; color: var(--dim); }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--border); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📊 LicitaAI — Proyección Financiera</h1>
+  <p class="sub">Modelo SaaS · Año 0 al Año 5 · mes a mes · 3 escenarios. Todos los supuestos son editables — cambia cualquier número y todo se recalcula al instante.</p>
+
+  <div class="controls">
+    <div class="tab pes" data-sc="pes" onclick="setScenario('pes')">🔴 Pesimista</div>
+    <div class="tab norm active" data-sc="norm" onclick="setScenario('norm')">🔵 Normal</div>
+    <div class="tab opt" data-sc="opt" onclick="setScenario('opt')">🟢 Optimista</div>
+    <div class="toggle">
+      <button id="curMXN" class="on" onclick="setCurrency('MXN')">MXN $</button>
+      <button id="curUSD" onclick="setCurrency('USD')">USD $</button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="chart-grid">
+    <div class="chart-box">
+      <h3>Ingresos vs Gastos vs Utilidad (mensual)</h3>
+      <canvas id="chartPL"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--green)"></i>Ingresos</span>
+        <span><i class="dot" style="background:var(--red)"></i>Gastos</span>
+        <span><i class="dot" style="background:var(--blue)"></i>Utilidad</span>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3>Clientes activos & Caja acumulada</h3>
+      <canvas id="chartCust"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--yellow)"></i>Clientes activos</span>
+        <span><i class="dot" style="background:var(--blue)"></i>Caja acumulada</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Supuestos del escenario <span class="pill" id="scName">Normal</span></h2>
+  <div class="assump">
+    <div class="assump-grid" id="assumpGrid"></div>
+    <p class="small" style="margin-top:14px">
+      ARPU = ingreso promedio mensual por cliente (mezcla de planes Starter $490 / Pro $990 / Business $1,990 MXN).
+      Conversión y CAC modelan el marketing. La nómina sube por escalones a medida que el negocio crece.
+    </p>
+  </div>
+
+  <h2>Detalle mes a mes <button class="btn" onclick="exportCSV()" style="float:right">⬇ Exportar CSV</button></h2>
+  <div class="tbl-wrap">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Mes</th><th>Clientes</th><th>Altas</th><th>Ingresos</th>
+          <th>Costos var.</th><th>Marketing</th><th>Fijos</th><th>Gastos tot.</th>
+          <th>Utilidad</th><th>Caja acum.</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <p class="small" style="margin-top:22px">
+    💡 Modelo de referencia para planeación, no una garantía. Las cifras dependen totalmente de los supuestos de arriba
+    (edítalos para tu realidad). Tipo de cambio usado: <b id="fxNote">$18.00 MXN/USD</b>.
+  </p>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// MODELO FINANCIERO
+// ─────────────────────────────────────────────────────────────────────────
+const FX = 18; // MXN por USD
+const MONTHS = 72; // Año 0 (m1-12) … Año 5 (m61-72)
+
+// Supuestos por escenario (todos editables en la UI).
+const SCEN = {
+  pes: {
+    arpu: 700, startNew: 4, growth: 4, maxNew: 50, churn: 9,
+    aiCost: 30, infraBase: 1500, infraPer: 5, stripePct: 4.5, cac: 500,
+    otherFixed: 3000, salaryY: [10000, 18000, 35000, 55000, 80000, 110000],
+  },
+  norm: {
+    arpu: 790, startNew: 8, growth: 8, maxNew: 120, churn: 6,
+    aiCost: 25, infraBase: 1500, infraPer: 4, stripePct: 4, cac: 350,
+    otherFixed: 3000, salaryY: [12000, 25000, 60000, 110000, 170000, 240000],
+  },
+  opt: {
+    arpu: 850, startNew: 15, growth: 12, maxNew: 250, churn: 3,
+    aiCost: 22, infraBase: 1800, infraPer: 4, stripePct: 3.8, cac: 280,
+    otherFixed: 3500, salaryY: [15000, 40000, 90000, 160000, 260000, 380000],
+  },
+};
+const LABELS = {
+  arpu: 'ARPU mensual (MXN)', startNew: 'Altas en mes 1', growth: 'Crecimiento altas %/mes',
+  maxNew: 'Tope altas/mes', churn: 'Churn mensual %', aiCost: 'Costo IA por cliente (MXN)',
+  infraBase: 'Infra fija (MXN/mes)', infraPer: 'Infra por cliente (MXN)',
+  stripePct: 'Comisión pago %', cac: 'CAC por cliente (MXN)', otherFixed: 'Otros fijos (MXN/mes)',
+};
+
+let scenario = 'norm';
+let currency = 'MXN';
+
+function compute(p) {
+  const rows = [];
+  let active = 0, cash = 0;
+  for (let m = 1; m <= MONTHS; m++) {
+    const year = Math.ceil(m / 12) - 1; // 0..5
+    const newAdds = Math.min(p.maxNew, p.startNew * Math.pow(1 + p.growth / 100, m - 1));
+    active = active * (1 - p.churn / 100) + newAdds;
+    const revenue = active * p.arpu;
+    const variable = active * (p.aiCost + p.infraPer) + revenue * (p.stripePct / 100);
+    const marketing = newAdds * p.cac;
+    const salary = p.salaryY[Math.min(year, p.salaryY.length - 1)];
+    const fixed = p.infraBase + p.otherFixed + salary;
+    const expenses = variable + marketing + fixed;
+    const profit = revenue - expenses;
+    cash += profit;
+    rows.push({ m, year, active, newAdds, revenue, variable, marketing, fixed, expenses, profit, cash });
+  }
+  return rows;
+}
+
+function fmt(n) {
+  const v = currency === 'USD' ? n / FX : n;
+  const sym = '$';
+  const abs = Math.abs(v);
+  let s;
+  if (abs >= 1e6) s = (v / 1e6).toFixed(2) + 'M';
+  else if (abs >= 1e3) s = (v / 1e3).toFixed(1) + 'k';
+  else s = Math.round(v).toString();
+  return sym + s;
+}
+function fmtFull(n) {
+  const v = currency === 'USD' ? n / FX : n;
+  return '$' + Math.round(v).toLocaleString('es-MX');
+}
+
+function render() {
+  const p = SCEN[scenario];
+  const rows = compute(p);
+  const last = rows[MONTHS - 1];
+  const mrr = last.revenue;
+  const arr = mrr * 12;
+  // Break-even operativo (primer mes con utilidad > 0)
+  const beOp = rows.find(r => r.profit > 0);
+  // Break-even de caja (primer mes con caja acumulada > 0)
+  const beCash = rows.find(r => r.cash > 0);
+  // Inversión máxima necesaria (caja más negativa)
+  const minCash = Math.min(...rows.map(r => r.cash));
+  const totalProfit = last.cash;
+
+  // CARDS
+  const cards = [
+    { label: 'MRR (mes 72)', val: fmt(mrr), note: 'Ingreso mensual recurrente' },
+    { label: 'ARR (año 5)', val: fmt(arr), note: 'Ingreso anualizado' },
+    { label: 'Clientes (mes 72)', val: Math.round(last.active).toLocaleString('es-MX'), note: 'Activos de pago' },
+    { label: 'Break-even operativo', val: beOp ? 'Mes ' + beOp.m : 'No alcanzado', note: beOp ? 'Año ' + beOp.year : 'en 72 meses', cls: beOp ? 'pos' : 'neg' },
+    { label: 'Break-even de caja', val: beCash ? 'Mes ' + beCash.m : 'No alcanzado', note: beCash ? 'Año ' + beCash.year : 'en 72 meses', cls: beCash ? 'pos' : 'neg' },
+    { label: 'Inversión máx. requerida', val: fmt(Math.abs(minCash)), note: 'Caja más negativa', cls: 'neg' },
+    { label: 'Caja acum. (año 5)', val: fmt(totalProfit), note: 'Utilidad acumulada', cls: totalProfit >= 0 ? 'pos' : 'neg' },
+  ];
+  document.getElementById('cards').innerHTML = cards.map(c =>
+    `<div class="card"><div class="label">${c.label}</div><div class="val ${c.cls||''}">${c.val}</div><div class="note">${c.note}</div></div>`
+  ).join('');
+
+  // TABLE
+  const tb = document.getElementById('tbody');
+  tb.innerHTML = rows.map(r => {
+    const sep = (r.m - 1) % 12 === 0;
+    return `<tr class="${sep ? 'yearsep' : ''}">
+      <td>${sep ? '<b>Año ' + r.year + '</b> · ' : ''}M${r.m}</td>
+      <td>${Math.round(r.active).toLocaleString('es-MX')}</td>
+      <td>${Math.round(r.newAdds)}</td>
+      <td>${fmtFull(r.revenue)}</td>
+      <td>${fmtFull(r.variable)}</td>
+      <td>${fmtFull(r.marketing)}</td>
+      <td>${fmtFull(r.fixed)}</td>
+      <td>${fmtFull(r.expenses)}</td>
+      <td class="${r.profit >= 0 ? 'pos' : 'neg'}">${fmtFull(r.profit)}</td>
+      <td class="${r.cash >= 0 ? 'pos' : 'neg'}">${fmtFull(r.cash)}</td>
+    </tr>`;
+  }).join('');
+
+  drawPL(rows);
+  drawCust(rows);
+  window._rows = rows;
+}
+
+// ── Charts (canvas, sin dependencias) ──
+function setupCanvas(id) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight || 220;
+  c.width = w * dpr; c.height = h * dpr;
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { ctx, w, h };
+}
+function lineChart(id, series, opts = {}) {
+  const { ctx, w, h } = setupCanvas(id);
+  const pad = { l: 46, r: 12, t: 10, b: 18 };
+  const allY = series.flatMap(s => s.data);
+  let max = Math.max(...allY, 0), min = Math.min(...allY, 0);
+  if (max === min) max = min + 1;
+  const range = max - min;
+  const n = series[0].data.length;
+  const X = i => pad.l + (i / (n - 1)) * (w - pad.l - pad.r);
+  const Y = v => pad.t + (1 - (v - min) / range) * (h - pad.t - pad.b);
+  ctx.clearRect(0, 0, w, h);
+  // grid + y labels
+  ctx.strokeStyle = '#1e293b'; ctx.fillStyle = '#64748b'; ctx.font = '10px system-ui'; ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const v = min + (range * g / 4); const y = Y(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+    const lbl = opts.fmt ? opts.fmt(v) : Math.round(v);
+    ctx.fillText(lbl, 2, y + 3);
+  }
+  // zero line
+  if (min < 0 && max > 0) { ctx.strokeStyle = '#475569'; ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(w - pad.r, Y(0)); ctx.stroke(); }
+  // x labels (years)
+  ctx.fillStyle = '#64748b';
+  for (let yr = 0; yr <= 5; yr++) { const i = yr * 12; if (i < n) ctx.fillText('A' + yr, X(i) - 4, h - 4); }
+  // series
+  series.forEach(s => {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath();
+    s.data.forEach((v, i) => { const x = X(i), y = Y(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.stroke();
+  });
+}
+function drawPL(rows) {
+  const conv = v => currency === 'USD' ? v / FX : v;
+  lineChart('chartPL', [
+    { color: '#34d399', data: rows.map(r => conv(r.revenue)) },
+    { color: '#f87171', data: rows.map(r => conv(r.expenses)) },
+    { color: '#60a5fa', data: rows.map(r => conv(r.profit)) },
+  ], { fmt: v => fmtAxis(v) });
+}
+function drawCust(rows) {
+  // dos ejes conceptuales: normalizamos clientes y caja a misma escala visual
+  const { ctx, w, h } = setupCanvas('chartCust');
+  const pad = { l: 46, r: 46, t: 10, b: 18 };
+  const cust = rows.map(r => r.active);
+  const cash = rows.map(r => currency === 'USD' ? r.cash / FX : r.cash);
+  const n = rows.length;
+  const X = i => pad.l + (i / (n - 1)) * (w - pad.l - pad.r);
+  const maxC = Math.max(...cust, 1);
+  let maxCash = Math.max(...cash, 0), minCash = Math.min(...cash, 0);
+  if (maxCash === minCash) maxCash = minCash + 1;
+  const Yc = v => pad.t + (1 - v / maxC) * (h - pad.t - pad.b);
+  const Y2 = v => pad.t + (1 - (v - minCash) / (maxCash - minCash)) * (h - pad.t - pad.b);
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#1e293b'; ctx.fillStyle = '#64748b'; ctx.font = '10px system-ui';
+  for (let g = 0; g <= 4; g++) { const y = pad.t + (g / 4) * (h - pad.t - pad.b); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); }
+  // left axis = clientes
+  for (let g = 0; g <= 4; g++) { const v = maxC * (1 - g / 4); ctx.fillText(Math.round(v), 2, pad.t + (g/4)*(h-pad.t-pad.b) + 3); }
+  // right axis = caja
+  ctx.textAlign = 'left';
+  for (let g = 0; g <= 4; g++) { const v = maxCash - (maxCash - minCash) * (g / 4); ctx.fillText(fmtAxis(v), w - pad.r + 2, pad.t + (g/4)*(h-pad.t-pad.b) + 3); }
+  for (let yr = 0; yr <= 5; yr++) { const i = yr * 12; if (i < n) ctx.fillText('A' + yr, X(i) - 4, h - 4); }
+  if (minCash < 0) { ctx.strokeStyle = '#475569'; ctx.beginPath(); ctx.moveTo(pad.l, Y2(0)); ctx.lineTo(w - pad.r, Y2(0)); ctx.stroke(); }
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.beginPath();
+  cust.forEach((v, i) => { const x = X(i), y = Yc(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.beginPath();
+  cash.forEach((v, i) => { const x = X(i), y = Y2(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+}
+function fmtAxis(v) {
+  const a = Math.abs(v);
+  if (a >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return '$' + Math.round(v / 1e3) + 'k';
+  return '$' + Math.round(v);
+}
+
+// ── Assumptions UI ──
+function renderAssumptions() {
+  const p = SCEN[scenario];
+  document.getElementById('scName').textContent = { pes: 'Pesimista', norm: 'Normal', opt: 'Optimista' }[scenario];
+  const grid = document.getElementById('assumpGrid');
+  grid.innerHTML = Object.keys(LABELS).map(k =>
+    `<div class="field"><label>${LABELS[k]}</label>
+     <input type="number" step="any" value="${p[k]}" onchange="updateField('${k}', this.value)"></div>`
+  ).join('');
+}
+function updateField(k, v) { SCEN[scenario][k] = parseFloat(v) || 0; render(); }
+
+function setScenario(s) {
+  scenario = s;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.sc === s));
+  renderAssumptions(); render();
+}
+function setCurrency(c) {
+  currency = c;
+  document.getElementById('curMXN').classList.toggle('on', c === 'MXN');
+  document.getElementById('curUSD').classList.toggle('on', c === 'USD');
+  render();
+}
+
+function exportCSV() {
+  const rows = window._rows || compute(SCEN[scenario]);
+  const head = ['Mes','Año','Clientes','Altas','Ingresos_MXN','CostosVar_MXN','Marketing_MXN','Fijos_MXN','GastosTot_MXN','Utilidad_MXN','CajaAcum_MXN'];
+  const lines = [head.join(',')];
+  rows.forEach(r => lines.push([r.m, r.year, Math.round(r.active), Math.round(r.newAdds),
+    Math.round(r.revenue), Math.round(r.variable), Math.round(r.marketing), Math.round(r.fixed),
+    Math.round(r.expenses), Math.round(r.profit), Math.round(r.cash)].join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'licitaai-proyeccion-' + scenario + '.csv';
+  a.click();
+}
+
+document.getElementById('fxNote').textContent = '$' + FX.toFixed(2) + ' MXN/USD';
+window.addEventListener('resize', render);
+renderAssumptions();
+render();
+</script>
+</body>
+</html>

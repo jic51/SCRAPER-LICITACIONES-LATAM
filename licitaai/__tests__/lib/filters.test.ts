@@ -8,6 +8,7 @@ const baseLic: Licitacion = {
   agency: 'SEP', sector: 'limpieza', state: 'CDMX',
   amount: 500000, deadline: '2026-07-01T00:00:00Z',
   pdf_url: null, found_at: '2026-06-11T02:00:00Z',
+  published_at: '2026-06-10T00:00:00Z',
 }
 
 const baseFilters: UserFilters = {
