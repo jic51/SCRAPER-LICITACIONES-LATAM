@@ -24,6 +24,9 @@ const scoreColorClass = {
   red: { bar: 'bg-red-500', text: 'text-red-400', ring: 'border-red-500/40' },
 }
 
+// Estatutos que el gobierno asigna a procedimientos ya cerrados.
+const CLOSED_STATUSES = new Set(['ADJUDICADO', 'ADJUDICADA', 'DESIERTA', 'CANCELADA', 'CANCELADO'])
+
 function ScoreBreakdown({ licitacion, filters }: { licitacion: Licitacion; filters: UserFilters }) {
   const items: { label: string; detail: string; points: number; active: boolean }[] = []
 
@@ -144,13 +147,53 @@ export default async function LicitacionDetailPage({
   const cls = scoreColorClass[color]
   const days = getDaysUntilDeadline(l.deadline)
 
-  const deadlineLabel = l.deadline
-    ? new Date(l.deadline).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-    : null
+  // Determinar estado del procedimiento
+  const isClosed = l.procedure_status ? CLOSED_STATUSES.has(l.procedure_status) : false
+  const isDeadlinePast = days !== null && days < 0
+  const isExpired = isClosed || (days !== null && days < -30)
 
-  const foundLabel = new Date(l.found_at).toLocaleDateString('es-MX', {
+  // Status badge: qué mostrarle al usuario
+  let statusLabel: string
+  let statusCls: string
+  let statusNote: string
+  if (isClosed) {
+    const label = l.procedure_status === 'ADJUDICADO' || l.procedure_status === 'ADJUDICADA'
+      ? 'Adjudicada' : l.procedure_status === 'DESIERTA' ? 'Desierta' : 'Cancelada'
+    statusLabel = label
+    statusCls = 'bg-slate-800 text-slate-400 border-slate-700'
+    statusNote = l.procedure_status === 'ADJUDICADO' || l.procedure_status === 'ADJUDICADA'
+      ? 'Esta licitación ya fue asignada a un proveedor. Ya no puedes participar en ella.'
+      : 'Este procedimiento fue declarado desierto o cancelado.'
+  } else if (isDeadlinePast) {
+    statusLabel = 'Vencida'
+    statusCls = 'bg-red-900/30 text-red-400 border-red-800/40'
+    statusNote = `El plazo para presentar propuestas venció hace ${Math.abs(days!)} días.`
+  } else if (days === null) {
+    statusLabel = 'Sin plazo publicado'
+    statusCls = 'bg-yellow-900/20 text-yellow-500 border-yellow-800/30'
+    statusNote = 'El gobierno no publicó una fecha de cierre. Puede ser adjudicación directa (sin concurso) o que los datos estén incompletos. Consulta la convocatoria oficial para confirmar.'
+  } else {
+    statusLabel = days === 0 ? 'Vence hoy' : `Vigente — ${days} días restantes`
+    statusCls = days <= 5 ? 'bg-orange-900/30 text-orange-400 border-orange-800/40' : 'bg-green-900/20 text-green-400 border-green-800/30'
+    statusNote = days === 0 ? '⚠️ Es el último día para presentar tu propuesta.'
+      : days <= 5 ? `⚠️ Quedan solo ${days} días. Actúa rápido.`
+      : `Tienes ${days} días para preparar y presentar tu propuesta.`
+  }
+
+  // Formateo de fechas
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-MX', {
     day: 'numeric', month: 'long', year: 'numeric',
   })
+
+  // Fecha de publicación oficial = cuándo el gobierno la publicó
+  const pubDateLabel = l.published_at ? fmtDate(l.published_at) : null
+  // Fecha que LicitaAI la detectó en los datos abiertos
+  const foundLabel = fmtDate(l.found_at)
+  // Plazo para propuestas
+  const deadlineLabel = l.deadline ? fmtDate(l.deadline) : null
+
+  // Código del expediente sin el prefijo de LicitaAI (MX-EXP2025-E-2025-XXXXX → E-2025-XXXXX)
+  const expedienteCode = l.portal_id.replace(/^[A-Z]+-(?:EXP|CON)\d{4}-/, '')
 
   return (
     <div className="max-w-3xl">
@@ -162,7 +205,7 @@ export default async function LicitacionDetailPage({
       </div>
 
       {/* Score + título */}
-      <div className={`bg-slate-900 border rounded-2xl p-6 mb-6 ${cls.ring}`}>
+      <div className={`bg-slate-900 border rounded-2xl p-6 mb-4 ${cls.ring}`}>
         <div className="flex items-start gap-5">
           {/* Score circle */}
           <div className={`shrink-0 w-20 h-20 rounded-full border-4 ${cls.ring} flex flex-col items-center justify-center`}>
@@ -172,8 +215,11 @@ export default async function LicitacionDetailPage({
 
           {/* Título y meta */}
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider">
-              {l.country_code} · {l.portal_id}
+            <p className="text-xs text-slate-500 mb-1">
+              {l.country_code} · Exp. <span className="font-mono">{expedienteCode}</span>
+              {l.procedure_num && (
+                <span className="ml-2 text-slate-600">· Proc. <span className="font-mono">{l.procedure_num}</span></span>
+              )}
             </p>
             <h1 className="text-xl font-bold leading-snug mb-2">{l.title}</h1>
             {isEstimated && (
@@ -186,10 +232,20 @@ export default async function LicitacionDetailPage({
 
         {/* Barra de score */}
         <div className="mt-5 bg-slate-800 rounded-full h-2 overflow-hidden">
-          <div
-            className={`h-2 rounded-full transition-all ${cls.bar}`}
-            style={{ width: `${score}%` }}
-          />
+          <div className={`h-2 rounded-full transition-all ${cls.bar}`} style={{ width: `${score}%` }} />
+        </div>
+      </div>
+
+      {/* Status banner — lo más importante: ¿puedo participar? */}
+      <div className={`border rounded-xl p-4 mb-6 ${statusCls}`}>
+        <div className="flex items-start gap-3">
+          <span className="text-lg leading-none mt-0.5">
+            {isClosed ? '🔒' : isDeadlinePast ? '⏰' : days === null ? '❓' : days <= 5 ? '⚡' : '✅'}
+          </span>
+          <div>
+            <p className="font-semibold text-sm">{statusLabel}</p>
+            <p className="text-sm opacity-80 mt-0.5">{statusNote}</p>
+          </div>
         </div>
       </div>
 
@@ -197,11 +253,21 @@ export default async function LicitacionDetailPage({
         {/* Datos de la licitación */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h2 className="font-semibold mb-4 text-slate-200">Datos de la licitación</h2>
-          <dl className="space-y-3 text-sm">
+          <dl className="space-y-4 text-sm">
             {l.agency && (
               <div>
                 <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Entidad convocante</dt>
                 <dd className="text-white">{l.agency}</dd>
+              </div>
+            )}
+            {l.email_convocante && (
+              <div>
+                <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Contacto del comprador</dt>
+                <dd>
+                  <a href={`mailto:${l.email_convocante}`} className="text-blue-400 hover:underline break-all">
+                    {l.email_convocante}
+                  </a>
+                </dd>
               </div>
             )}
             {l.sector && (
@@ -216,24 +282,54 @@ export default async function LicitacionDetailPage({
                 <dd className="text-white">{l.state}</dd>
               </div>
             )}
+
+            {/* Monto */}
             <div>
-              <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Monto estimado</dt>
-              <dd className="text-white font-medium">{formatAmount(l.amount)}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Fecha límite</dt>
-              <dd className={days !== null && days <= 3 ? 'text-red-400 font-medium' : 'text-white'}>
-                {deadlineLabel ?? 'No especificada'}
-                {days !== null && (
-                  <span className="text-slate-400 ml-2">
-                    ({days > 0 ? `${days} días restantes` : days === 0 ? 'Vence hoy' : 'Vencida'})
+              <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Monto presupuestal</dt>
+              {l.amount !== null ? (
+                <dd className="text-white font-medium">{formatAmount(l.amount)}</dd>
+              ) : (
+                <dd className="text-slate-500 text-xs leading-relaxed">
+                  No publicado.{' '}
+                  <span className="text-slate-600">
+                    El gobierno frecuentemente no divulga el presupuesto hasta firmar el contrato.
+                    Consulta la convocatoria oficial para conocerlo.
                   </span>
-                )}
-              </dd>
+                </dd>
+              )}
             </div>
-            <div>
-              <dt className="text-slate-500 text-xs uppercase tracking-wider mb-0.5">Detectada</dt>
-              <dd className="text-slate-300">{foundLabel}</dd>
+
+            {/* Fechas — sección "desde / hasta" */}
+            <div className="border-t border-slate-800 pt-4 space-y-3">
+              <dt className="text-slate-500 text-xs uppercase tracking-wider">Cronología</dt>
+
+              {pubDateLabel && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Publicada por el gobierno</span>
+                  <span className="text-white">{pubDateLabel}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                {deadlineLabel ? (
+                  <>
+                    <span className="text-slate-400">Plazo para propuestas</span>
+                    <span className={isDeadlinePast ? 'text-red-400' : days !== null && days <= 5 ? 'text-orange-400 font-medium' : 'text-white'}>
+                      {deadlineLabel}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-400">Plazo para propuestas</span>
+                    <span className="text-slate-500 text-xs">No publicado</span>
+                  </>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-600 text-xs">Añadida a LicitaAI</span>
+                <span className="text-slate-600 text-xs">{foundLabel}</span>
+              </div>
             </div>
           </dl>
         </div>
@@ -254,11 +350,11 @@ export default async function LicitacionDetailPage({
             rel="noopener noreferrer"
             className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
           >
-            <span>📄</span> Ver convocatoria oficial
+            <span>🔗</span> Ver convocatoria en ComprasMX
           </a>
         ) : (
           <span className="flex-1 inline-flex items-center justify-center gap-2 bg-slate-800 text-slate-500 font-medium py-2.5 px-4 rounded-lg text-sm cursor-not-allowed">
-            📄 Convocatoria no disponible
+            🔗 Enlace no disponible
           </span>
         )}
         <Link
@@ -269,7 +365,6 @@ export default async function LicitacionDetailPage({
         </Link>
       </div>
 
-      {/* Nota IA */}
       {isEstimated && (
         <p className="mt-6 text-center text-slate-500 text-xs">
           El análisis con IA del PDF completo estará disponible próximamente.

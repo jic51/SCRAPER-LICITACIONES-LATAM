@@ -31,6 +31,7 @@ export function inferSector(text: string): string | null {
 export interface OCDSRelease {
   ocid?: string
   id?: string
+  date?: string
   buyer?: { name?: string }
   tender?: {
     id?: string
@@ -102,7 +103,12 @@ export function releaseToLicitacion(r: OCDSRelease, opts: NormalizeOpts): RawIns
     state: opts.state,
     amount: typeof tender?.value?.amount === 'number' ? Math.round(tender.value.amount) : null,
     deadline: tender?.tenderPeriod?.endDate ?? null,
-    published_at: null,
+    // Fecha de publicación del proceso: `date` del release OCDS, o el inicio
+    // del periodo de licitación como respaldo.
+    published_at: r.date ?? tender?.tenderPeriod?.startDate ?? null,
     pdf_url: pdf,
+    procedure_num: null,
+    email_convocante: null,
+    procedure_status: null,
   }
 }

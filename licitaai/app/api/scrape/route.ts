@@ -119,6 +119,52 @@ export async function GET(req: Request) {
     )
   }
 
+  // Modo descubridor: ?discover=<baseUrl> prueba rutas OCDS comunes sobre una
+  // base de portal estatal y reporta cuáles responden con JSON y qué forma
+  // tienen. Sirve para confirmar el endpoint correcto de un portal nuevo sin
+  // adivinar a mano. Ej:
+  //   /api/scrape?secret=...&discover=https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1
+  const rawDiscoverMatch = req.url.match(/[?&]discover=(.+)$/)
+  const discover = rawDiscoverMatch ? decodeURIComponent(rawDiscoverMatch[1]) : null
+  if (discover) {
+    const base = discover.replace(/\/+$/, '')
+    // Rutas OCDS típicas en portales de gobierno (CKAN, EDCA, OCDS API estándar).
+    const paths = [
+      '/releases', '/records', '/tenders', '/contractingprocess',
+      '/release_package', '/record_package', '/edca', '/ocds',
+      '/plannings', '/contracts', '/api/ocds/releases',
+      // Plataforma "Contratos/Contrataciones Abiertas" (CDMX, Jalisco, etc.)
+      '/api/licitaciones', '/api/contratos', '/api/licitaciones/1', '',
+    ]
+    const results: Array<{ url: string; status: number | string; json: boolean; shape?: string | string[]; releases?: number }> = []
+    await Promise.all(paths.map(async (p) => {
+      const target = `${base}${p}`
+      try {
+        const res = await undiciFetch(target, {
+          headers: { ...BROWSER_HEADERS, Accept: 'application/json, */*' },
+          signal: AbortSignal.timeout(15_000),
+          dispatcher: insecureAgent,
+        })
+        const text = await res.text()
+        let json = false
+        let shape: string | string[] | undefined
+        let releases: number | undefined
+        try {
+          const parsed: unknown = JSON.parse(text)
+          json = true
+          shape = describeShape(parsed)
+          releases = extractReleases(parsed).length
+        } catch { /* no es JSON */ }
+        results.push({ url: target, status: res.status, json, shape, releases })
+      } catch (e) {
+        results.push({ url: target, status: e instanceof Error ? e.message : 'error', json: false })
+      }
+    }))
+    // Ordena: primero los que devuelven releases OCDS, luego JSON, luego el resto.
+    results.sort((a, b) => (b.releases ?? 0) - (a.releases ?? 0) || Number(b.json) - Number(a.json))
+    return NextResponse.json({ discover: base, candidates: results })
+  }
+
   // Modo explorador: ?probe=<url> trae cualquier URL a través de esta máquina
   // (con bypass de certificado/Akamai) y devuelve la respuesta cruda. Sirve
   // para descubrir endpoints de portales que no podemos inspeccionar de otra

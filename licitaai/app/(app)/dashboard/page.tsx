@@ -49,22 +49,26 @@ export default async function DashboardPage({
   ])
 
   const filters: UserFilters = { ...DEFAULT_FILTERS, ...(filtersRow ?? {}) }
-  const scoreById = new Map(
+  const scoreById = new Map<string, number>(
     (scores ?? []).map((s: Pick<FitScore, 'licitacion_id' | 'score'>) => [s.licitacion_id, s.score])
   )
+
+  // Estatutos que el gobierno marca como ya cerrado — no son oportunidades.
+  const CLOSED_STATUSES = new Set(['ADJUDICADO', 'ADJUDICADA', 'DESIERTA', 'CANCELADA', 'CANCELADO'])
 
   const allItems = ((licitaciones ?? []) as Licitacion[]).map((l) => {
     const stored = scoreById.get(l.id)
     const days = getDaysUntilDeadline(l.deadline)
-    // Vencida = tiene deadline Y venció hace más de 30 días
-    const isExpired = days !== null && days < -30
-    // Fecha de publicación real del gobierno (si existe) o cuando la importamos
+    // Cerrada = el gobierno la marcó como cerrada, O venció hace más de 30 días.
+    const statusClosed = l.procedure_status ? CLOSED_STATUSES.has(l.procedure_status) : false
+    const isExpired = statusClosed || (days !== null && days < -30)
     const pubDate = l.published_at ?? l.found_at
     return {
       ...l,
       score: stored ?? estimateMatchScore(l, filters),
       source: stored !== undefined ? ('analizado' as const) : ('estimado' as const),
       isExpired,
+      statusClosed,
       days,
       pubDate,
     }
@@ -157,8 +161,10 @@ export default async function DashboardPage({
         <div className="space-y-3">
           {items.map((l) => {
             const color = getScoreColor(l.score)
+            // Etiqueta de plazo — más descriptiva según el contexto
             const deadlineLabel =
-              l.days === null ? 'Sin fecha límite'
+              l.statusClosed ? (l.procedure_status ?? 'Cerrada')
+              : l.days === null ? 'Plazo no publicado'
               : l.days === 0 ? '⚠️ Vence hoy'
               : l.days > 0 && l.days <= 5 ? `⚠️ Vence en ${l.days} días`
               : l.days > 0 ? `Vence en ${l.days} días`
@@ -179,14 +185,20 @@ export default async function DashboardPage({
                 }`}
               >
                 <div className="flex items-center gap-4 min-w-0">
-                  <span className={`text-2xl font-bold w-14 shrink-0 ${l.isExpired ? 'text-slate-600' : colorClass[color]}`}>
-                    {l.score}%
-                  </span>
+                  {/* Score con "est." debajo cuando es estimado */}
+                  <div className={`flex flex-col items-center w-14 shrink-0 ${l.isExpired ? 'text-slate-600' : colorClass[color]}`}>
+                    <span className="text-2xl font-bold leading-none">{l.score}%</span>
+                    {l.source === 'estimado' && (
+                      <span className="text-[10px] text-slate-500 leading-tight mt-0.5">est.</span>
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium truncate">{l.title}</p>
                       {l.isExpired && (
-                        <span className="text-xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded shrink-0">Vencida</span>
+                        <span className="text-xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
+                          {l.statusClosed ? (l.procedure_status ?? 'Cerrada') : 'Vencida'}
+                        </span>
                       )}
                     </div>
                     <p className={`text-sm mt-0.5 ${l.isExpired ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -197,9 +209,6 @@ export default async function DashboardPage({
                       </span>
                       {pubLabel && (
                         <span className="ml-2 text-slate-500 text-xs">· Pub. {pubLabel}</span>
-                      )}
-                      {l.source === 'estimado' && (
-                        <span className="ml-2 text-xs text-slate-500">(estimado)</span>
                       )}
                     </p>
                   </div>
@@ -215,8 +224,8 @@ export default async function DashboardPage({
 
       <div className="mt-8 p-4 bg-slate-900 border border-slate-800 rounded-xl">
         <p className="text-slate-400 text-sm text-center">
-          🔄 El puntaje marcado como <span className="text-slate-300">(estimado)</span> se calcula con tus
-          filtros. El análisis con IA del PDF completo llegará pronto.
+          🔄 El puntaje marcado como <span className="text-slate-300">est.</span> se calcula con tus
+          filtros actuales. El análisis con IA del PDF completo llegará pronto.
         </p>
       </div>
     </div>
