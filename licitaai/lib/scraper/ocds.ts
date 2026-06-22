@@ -107,5 +107,8 @@ export function releaseToLicitacion(r: OCDSRelease, opts: NormalizeOpts): RawIns
     // del periodo de licitación como respaldo.
     published_at: r.date ?? tender?.tenderPeriod?.startDate ?? null,
     pdf_url: pdf,
+    procedure_num: null,
+    email_convocante: null,
+    procedure_status: null,
   }
 }

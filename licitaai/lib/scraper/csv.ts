@@ -60,6 +60,29 @@ const CANDIDATES: Record<string, string[]> = {
   pdf: [
     'direccion_anuncio', 'direccion_del_anuncio', 'anuncio',
   ],
+  // Número oficial del procedimiento (AA-90-006-...) — distinto del código de
+  // expediente. El proveedor lo necesita para buscar en ComprasMX.
+  procedureNum: [
+    'numero_de_procedimiento_de_contratacion',
+    'numero_procedimiento_de_contratacion',
+    'num_procedimiento_de_contratacion',
+    'numero_del_procedimiento',
+  ],
+  // Email de la unidad compradora: contacto directo con quien compra.
+  emailConvocante: [
+    'correo_electronico_unidad_compradora',
+    'correo_electronico_de_la_uc',
+    'correo_electronico',
+    'email_uc',
+  ],
+  // Estatus del procedimiento: EN PROCESO, ADJUDICADO, DESIERTA, CANCELADA, etc.
+  // Permite distinguir oportunidades abiertas de contratos ya cerrados.
+  procedureStatus: [
+    'estatus_del_procedimiento_de_contratacion',
+    'estatus_procedimiento',
+    'estatus_del_expediente',
+    'estatus',
+  ],
 }
 
 function pick(
@@ -129,6 +152,7 @@ export function parseCsv(
     const stateRaw = pick(rec, keysNorm, CANDIDATES.state) ?? opts.state
     const state = stateRaw ? stateRaw.trim().slice(0, 100) : null
 
+    const rawStatus = pick(rec, keysNorm, CANDIDATES.procedureStatus)
     rows.push({
       portal_id: `${opts.portalPrefix}-${pid}`.slice(0, 200),
       country_code: opts.countryCode,
@@ -140,6 +164,9 @@ export function parseCsv(
       deadline: toDate(pick(rec, keysNorm, CANDIDATES.deadline)),
       published_at: toDate(pick(rec, keysNorm, CANDIDATES.published)),
       pdf_url: pick(rec, keysNorm, CANDIDATES.pdf),
+      procedure_num: pick(rec, keysNorm, CANDIDATES.procedureNum),
+      email_convocante: pick(rec, keysNorm, CANDIDATES.emailConvocante),
+      procedure_status: rawStatus ? rawStatus.trim().toUpperCase().slice(0, 50) : null,
     })
   }
   return { rows, headers, total: records.length }

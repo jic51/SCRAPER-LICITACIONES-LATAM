@@ -41,6 +41,12 @@ export type Licitacion = {
   pdf_url: string | null
   found_at: string
   published_at: string | null
+  // Número oficial del procedimiento (AA-90-006-...). Lo busca el proveedor en ComprasMX.
+  procedure_num: string | null
+  // Email de la unidad compradora — contacto directo con quien compra.
+  email_convocante: string | null
+  // Estatus del gobierno: EN PROCESO, ADJUDICADO, DESIERTA, CANCELADA, etc.
+  procedure_status: string | null
 }
 
 export type FitScoreAnalysisItem = {

@@ -110,17 +110,20 @@ export const MX_STATE_SOURCES: Source[] = [
 ]
 
 export const SOURCES: Source[] = [
-  // 1) Federal — orden por prioridad: primero lo más reciente (2026), luego
-  //    hacia atrás. Los años que aún no existan dan 404 y se ignoran solos.
-  //    Expedientes = licitaciones/procedimientos publicados (lo que busca el
-  //    cliente). El gobierno suele publicar el archivo del año a mitad de año.
+  // 1) Federal — Expedientes = procedimientos de contratación publicados.
+  //    Incluyen el estatus (EN PROCESO, ADJUDICADO, DESIERTA, etc.) para que
+  //    el dashboard pueda mostrar solo oportunidades abiertas.
+  //    Los años que no existan dan 404 silencioso y se omiten automáticamente.
   expedientesYear(2026),        // puede no existir aún → 404 silencioso
   expedientesYear(2025),
   expedientesYear(2024),
 
-  // Contratos = ya adjudicados, pero traen el monto (Importe DRC).
-  contratosYear(2026),          // puede no existir aún → 404 silencioso
-  contratosYear(2025),
+  // NOTA: Contratos_CompraNetYYYY.csv NO se usa aquí. Ese archivo contiene
+  // contratos ya firmados (resultado final de licitaciones ya cerradas).
+  // Importarlos como "licitaciones" confunde al usuario: aparecen sin fecha
+  // límite y con estatus "ADJUDICADO" mezclados con oportunidades abiertas.
+  // Si se necesita enriquecer montos desde contratos, hacerlo en un job
+  // separado que actualice licitaciones existentes por expediente_id.
 
   // 2) Estatales — datos vigentes del año en curso mientras llega el CSV
   //    federal 2026. Formato OCDS (JSON), se parsean con el mismo motor.
