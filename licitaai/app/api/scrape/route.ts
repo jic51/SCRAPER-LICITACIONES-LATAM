@@ -132,7 +132,9 @@ export async function GET(req: Request) {
     const paths = [
       '/releases', '/records', '/tenders', '/contractingprocess',
       '/release_package', '/record_package', '/edca', '/ocds',
-      '/plannings', '/contracts', '/api/ocds/releases', '',
+      '/plannings', '/contracts', '/api/ocds/releases',
+      // Plataforma "Contratos/Contrataciones Abiertas" (CDMX, Jalisco, etc.)
+      '/api/licitaciones', '/api/contratos', '/api/licitaciones/1', '',
     ]
     const results: Array<{ url: string; status: number | string; json: boolean; shape?: string | string[]; releases?: number }> = []
     await Promise.all(paths.map(async (p) => {

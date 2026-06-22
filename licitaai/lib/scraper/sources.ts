@@ -76,42 +76,43 @@ function mxStateOcds(opts: {
   }
 }
 
-// CDMX — Tianguis Digital. Publica contrataciones en estándar EDCA (OCDS).
-// Dominio VERIFICADO: datosabiertostianguisdigital.cdmx.gob.mx/api/v1/
-// (se confirmó que el recurso /plannings existe). El recurso que devuelve los
-// releases OCDS aún se debe confirmar con probe desde el servidor desplegado:
-//   /api/scrape?secret=...&probe=https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/releases
-// Si /releases no responde, probar /records, /tenders o /contractingprocess.
-const CDMX_TIANGUIS = mxStateOcds({
+// CDMX — "Contratos Abiertos" CDMX. Endpoint DOCUMENTADO por la comunidad OCDS
+// que devuelve licitaciones en estándar EDCA/OCDS (array de releases). Doc:
+// contratosabiertos.cdmx.gob.mx/datos-abiertos/documentacion-api-licitaciones
+// (El sistema nuevo Tianguis Digital expone otra API en
+//  datosabiertostianguisdigital.cdmx.gob.mx/api/v1/ — usar /discover si se
+//  migra a esa.)
+const CDMX_CONTRATOS = mxStateOcds({
   state: 'Ciudad de México',
-  name: 'CDMX — Tianguis Digital (OCDS)',
-  url: 'https://datosabiertostianguisdigital.cdmx.gob.mx/api/v1/releases',
+  name: 'CDMX — Contratos Abiertos (OCDS)',
+  url: 'http://www.contratosabiertos.cdmx.gob.mx/api/licitaciones',
   prefix: 'MX-CDMX',
 })
 
-// Jalisco — Plataforma de Contrataciones Abiertas (OCDS). Dominio del portal
-// de gobierno abierto; endpoint OCDS exacto por confirmar con probe.
+// Jalisco — usa la MISMA plataforma "Contrataciones Abiertas". Portal
+// verificado: contratacionesabiertas.jalisco.gob.mx/contratosabiertos/.
+// El endpoint /api/licitaciones sigue el mismo patrón; confirmar con /discover.
 const JALISCO = mxStateOcds({
   state: 'Jalisco',
   name: 'Jalisco — Contrataciones Abiertas (OCDS)',
-  url: 'https://contratacionesabiertas.jalisco.gob.mx/OCDS/',
+  url: 'https://contratacionesabiertas.jalisco.gob.mx/api/licitaciones',
   prefix: 'MX-JAL',
 })
 
-// Nuevo León — Datos Abiertos / Contrataciones Abiertas. Dominio VERIFICADO:
-// nl.gob.mx/es/datosabiertos-contrataciones-abiertas. Endpoint OCDS por
-// confirmar con probe desde el servidor desplegado.
+// Nuevo León — Datos Abiertos / Contrataciones Abiertas. Publicador OCDS
+// oficial (OCP Data Registry, publicación 149). Endpoint exacto por confirmar
+// con /discover desde el servidor desplegado.
 const NUEVO_LEON = mxStateOcds({
   state: 'Nuevo León',
   name: 'Nuevo León — Contrataciones Abiertas (OCDS)',
-  url: 'https://datosabiertos.nl.gob.mx/api/v1/releases',
+  url: 'https://datosabiertos.nl.gob.mx/api/licitaciones',
   prefix: 'MX-NL',
 })
 
 // Estados con fuente estatal candidata. Se prueban en cada corrida; los que no
 // respondan quedan registrados como error y no afectan al resto.
 export const MX_STATE_SOURCES: Source[] = [
-  CDMX_TIANGUIS,
+  CDMX_CONTRATOS,
   JALISCO,
   NUEVO_LEON,
 ]
