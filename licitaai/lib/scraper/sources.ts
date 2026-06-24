@@ -142,7 +142,20 @@ export const SOURCES: Source[] = [
   // Si se necesita enriquecer montos desde contratos, hacerlo en un job
   // separado que actualice licitaciones existentes por expediente_id.
 
-  // 2) Estatales — datos vigentes del año en curso mientras llega el CSV
-  //    federal 2026. Formato OCDS (JSON), se parsean con el mismo motor.
-  ...MX_STATE_SOURCES,
+  // 2) Estatales — DESACTIVADAS (2026-06). Se intentó integrar CDMX, Jalisco y
+  //    Nuevo León vía OCDS, pero NO rinden el esfuerzo:
+  //      • Cada portal estatal es un sistema distinto, sin API documentada
+  //        estable, y que bloquea accesos automáticos (solo se prueban a mano).
+  //      • CDMX: el portal viejo (contratosabiertos) está muerto (timeout); el
+  //        nuevo (Tianguis Digital) expone otra API por confirmar.
+  //      • Jalisco: ruta /api/licitaciones devuelve UnknownOperationException.
+  //      • Nuevo León: NO tiene API en vivo, solo sube archivos JSON-OCDS
+  //        sueltos a un portal CKAN (y el más reciente era de marzo 2025).
+  //      • REDUNDANTES: el CSV federal de ComprasMX ya trae TODAS las entidades
+  //        federativas por fila (columna "Entidad Federativa"), así que CDMX,
+  //        Jalisco y NL ya entran por la fuente federal.
+  //    Se dejan las definiciones (CDMX_CONTRATOS, JALISCO, NUEVO_LEON,
+  //    MX_STATE_SOURCES) por si en el futuro se retoma alguna con /discover.
+  //    Para reactivar: descomentar la línea de abajo.
+  // ...MX_STATE_SOURCES,
 ]
