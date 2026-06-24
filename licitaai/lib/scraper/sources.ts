@@ -4,7 +4,7 @@ export type Source = NormalizeOpts & {
   name: string
   url: string
   method?: 'GET' | 'POST'
-  format?: 'json' | 'csv' | 'dof'
+  format?: 'json' | 'csv'
   body?: Record<string, string>
   limit?: number
 }
@@ -117,25 +117,16 @@ export const MX_STATE_SOURCES: Source[] = [
   NUEVO_LEON,
 ]
 
-// DOF — Diario Oficial de la Federación. Fuente más fresca de licitaciones
-// federales: publica convocatorias el mismo día que salen (ventaja de 6-12
-// meses sobre los CSVs de ComprasMX). El motor usa un parser HTML especial
-// (`format: 'dof'`) que no necesita URL ni body: busca internamente en
-// dof.gob.mx/buscar.php los últimos 7 días.
-export const DOF_SOURCE: Source = {
-  name: 'DOF — Diario Oficial de la Federación (últimos 7 días)',
-  countryCode: 'MX',
-  state: null,
-  portalPrefix: 'MX-DOF',
-  url: '',          // no aplica; el scraper DOF construye sus propias URLs
-  format: 'dof',
-}
+// NOTA SOBRE EL DOF (Diario Oficial de la Federación): se evaluó como fuente
+// "en vivo" de licitaciones federales, pero se descartó. El DOF publica las
+// convocatorias agrupadas en UNA sola nota diaria ("Licitaciones Públicas
+// Nacionales e Internacionales") cuyo contenido es una IMAGEN/PDF escaneado,
+// no texto extraíble (verificado: la palabra "CONVOCATORIA" no aparece en el
+// HTML de la nota). Extraer licitaciones individuales requeriría OCR — frágil
+// y de baja calidad. Para datos granulares y filtrables conviene ComprasMX
+// (CSV estructurado) y los portales estatales OCDS (JSON).
 
 export const SOURCES: Source[] = [
-  // 0) DOF — fuente más fresca: licitaciones publicadas HOY y la última semana.
-  //    Cubre todas las dependencias federales con datos de 2026 actuales.
-  DOF_SOURCE,
-
   // 1) Federal — Expedientes = procedimientos de contratación publicados.
   //    Incluyen el estatus (EN PROCESO, ADJUDICADO, DESIERTA, etc.) para que
   //    el dashboard pueda mostrar solo oportunidades abiertas.

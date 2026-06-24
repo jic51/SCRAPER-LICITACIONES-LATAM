@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import { fetch as undiciFetch, Agent, type RequestInit as UndiciRequestInit } from 'undici'
 import { extractReleases, releaseToLicitacion, type RawInsert } from '@/lib/scraper/ocds'
 import { parseCsv } from '@/lib/scraper/csv'
-import { fetchDofLicitaciones } from '@/lib/scraper/dof'
 import { SOURCES, type Source } from '@/lib/scraper/sources'
 
 export const dynamic = 'force-dynamic'
@@ -256,20 +255,7 @@ export async function GET(req: Request) {
     try {
       let rows: RawInsert[] = []
 
-      if (source.format === 'dof') {
-        // Scraper HTML del DOF: busca convocatorias en los últimos 7 días.
-        const result = await fetchDofLicitaciones(7, 5)
-        if (result.error && result.rows.length === 0) {
-          row.error = result.error
-          summary.push(row)
-          continue
-        }
-        if (result.error) row.error = result.error  // error parcial — igual upsert lo que se pudo
-        rows = result.rows
-        row.fetched = rows.length
-        row.normalized = rows.length
-        if (debug) row.sampleRaw = JSON.stringify(rows.slice(0, 2)).slice(0, 4000)
-      } else if (source.format === 'csv') {
+      if (source.format === 'csv') {
         // Descarga el tramo final (lo más reciente) + encabezado del inicio.
         const csv = await fetchRecentCsv(source.url)
         if (!csv.ok) {
